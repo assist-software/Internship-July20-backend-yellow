@@ -1,34 +1,30 @@
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from Club_Management.users.models import *
-from Club_Management.Athletes.models import *
-from Club_Management.Club.models import *
-
 # Create your models here.
 
 
 class Events(models.Model):
-    club = models.ForeignKey(Club, on_delete=models.CASCADE)
+    club = models.ForeignKey('Club.Club', on_delete=models.CASCADE)
     name = models.CharField(max_length=30)
     description = models.CharField(max_length=300)
     location = models.CharField(max_length=300)
     date = models.DateTimeField('date events')
     time = models.DateTimeField('time events')
-    sport = models.ForeignKey(Sports, on_delete=models.CASCADE)
-    participants = models.ForeignKey('Events.Participants', on_delete=models.CASCADE)
+    sport = models.ForeignKey('Athletes.Sports', on_delete=models.CASCADE)
+    participants_event = models.ForeignKey('Events.Participants', on_delete=models.CASCADE)
 
 
 class Participants(models.Model):
     event = models.ForeignKey(Events, on_delete=models.CASCADE)
-    member = models.ForeignKey(Members_club, on_delete=models.CASCADE)
+    member = models.ForeignKey('Club.Members_club', on_delete=models.CASCADE)
     is_invited = models.BooleanField(default=False)
     is_requested = models.BooleanField(default=False)
     is_member = models.BooleanField(default=False)
 
 
 class Workout(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey('users.User', on_delete=models.CASCADE)
     name = models.CharField(max_length=30)
     description = models.CharField(max_length=300)
     event = models.ForeignKey(Events, on_delete=models.CASCADE)

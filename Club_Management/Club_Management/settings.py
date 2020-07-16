@@ -41,10 +41,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework_swagger',
     'rest_framework',
-    'Events'
-    'Club',
-    'users',
     'Athletes',
+    'users',
+    'Club',
+    'Events',
 ]
 
 MIDDLEWARE = [
