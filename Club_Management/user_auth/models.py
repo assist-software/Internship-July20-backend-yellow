@@ -23,7 +23,7 @@ class UserManager(BaseUserManager):
                                           'height': height, 'weight': weight, 'age': role, 'role': role})
         serializer.is_valid()
 
-        user = self.moel(
+        user = self.model(
             email=self.normalize_email(email),
             first_name=first_name,
             last_name=last_name,
@@ -116,17 +116,15 @@ class User(AbstractBaseUser, PermissionsMixin):
                                     help_text=_('Designates whether this user should be treated as active. '
                                                 'Unselect this instead of deleting accounts.'),
                                     )
-    '''
-    primary_sport = models.ForeignKey(Sports, blank=True, null=True, on_delete=models.CASCADE, related_name='Primary'
+    primary_sport = models.ForeignKey('Athlets.Sports', blank=True, null=True, on_delete=models.CASCADE, related_name='Primary'
                                       , help_text=_('Choose a primary sport.'))
-    secondary_sport = models.ForeignKey(Sports, blank=True, null=True, on_delete=models.CASCADE,
+    secondary_sport = models.ForeignKey('Athlets.Sports', blank=True, null=True, on_delete=models.CASCADE,
                                         related_name='Secondary'
                                         , help_text=_('Choose a secondary sport.'))
-    '''
 
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     role = models.IntegerField(_('Role'), choices=TYPES, default=ADMIN)
-    # objects = UserManager()
+    objects = UserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name', 'height', 'weight', 'age', 'role']
