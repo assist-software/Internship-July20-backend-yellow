@@ -1,8 +1,8 @@
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from Club_Management.user_auth.models import *
-from Club_Management.Athlets.models import *
+from Club_Management.users.models import *
+from Club_Management.Athletes.models import *
 from Club_Management.Club.models import *
 
 # Create your models here.
@@ -12,7 +12,7 @@ class Events(models.Model):
     club = models.ForeignKey(Club, on_delete=models.CASCADE)
     name = models.CharField(max_length=30)
     description = models.CharField(max_length=300)
-    location = models.CharField(max_length = 300)
+    location = models.CharField(max_length=300)
     date = models.DateTimeField('date events')
     time = models.DateTimeField('time events')
     sport = models.ForeignKey(Sports, on_delete=models.CASCADE)
@@ -37,9 +37,9 @@ class Workout(models.Model):
     radius = models.IntegerField(default=0)
     duration = models.IntegerField(default=0)
     distance = models.IntegerField(default=0)
-    avarage_hr = models.IntegerField(default=0)
+    average_hr = models.IntegerField(default=0)
     calories_burned = models.IntegerField(default=0)
-    avarage_speed = models.IntegerField(default=0)
-    workout_effectivnes = models.IntegerField(default=0)
+    average_speed = models.IntegerField(default=0)
+    workout_effectiveness = models.IntegerField(default=0)
     heart_rate = models.IntegerField()
 

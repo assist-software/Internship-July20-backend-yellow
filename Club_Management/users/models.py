@@ -87,6 +87,7 @@ class UserManager(BaseUserManager):
         user.save()
         return user
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     # password from AbstractBaseUser
 
@@ -116,9 +117,9 @@ class User(AbstractBaseUser, PermissionsMixin):
                                     help_text=_('Designates whether this user should be treated as active. '
                                                 'Unselect this instead of deleting accounts.'),
                                     )
-    primary_sport = models.ForeignKey('Athlets.Sports', blank=True, null=True, on_delete=models.CASCADE, related_name='Primary'
+    primary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE, related_name='Primary'
                                       , help_text=_('Choose a primary sport.'))
-    secondary_sport = models.ForeignKey('Athlets.Sports', blank=True, null=True, on_delete=models.CASCADE,
+    secondary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE,
                                         related_name='Secondary'
                                         , help_text=_('Choose a secondary sport.'))
 
@@ -135,7 +136,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return full_name.strip()
 
     def __str__(self):
-        return f"{self.get_full_name()} <{self.email} , height:{self.height}, weight:{self.weight}, age:{self.age}, role:{self.role}>"
+        return f"{self.get_full_name()} <{self.email}, height:{self.height}, weight:{self.weight}, age:{self.age}, role:{self.role}>"
 
     def has_perm(self, perm, obj=None):
         # Does the user have a specific permission?

@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('Athlets', '0001_initial'),
+        ('Athletes', '0001_initial'),
         ('auth', '0011_update_proxy_permissions'),
     ]
 
@@ -34,8 +34,8 @@ class Migration(migrations.Migration):
                 ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
                 ('role', models.IntegerField(choices=[(0, 'Admin'), (1, 'Coach'), (2, 'Athlete')], default=0, verbose_name='Role')),
                 ('groups', models.ManyToManyField(blank=True, help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.', related_name='user_set', related_query_name='user', to='auth.Group', verbose_name='groups')),
-                ('primary_sport', models.ForeignKey(blank=True, help_text='Choose a primary sport.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='Primary', to='Athlets.Sports')),
-                ('secondary_sport', models.ForeignKey(blank=True, help_text='Choose a secondary sport.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='Secondary', to='Athlets.Sports')),
+                ('primary_sport', models.ForeignKey(blank=True, help_text='Choose a primary sport.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='Primary', to='Athletes.Sports')),
+                ('secondary_sport', models.ForeignKey(blank=True, help_text='Choose a secondary sport.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='Secondary', to='Athletes.Sports')),
                 ('user_permissions', models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='user_set', related_query_name='user', to='auth.Permission', verbose_name='user permissions')),
             ],
             options={
