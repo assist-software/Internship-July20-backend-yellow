@@ -26,7 +26,8 @@ SECRET_KEY = '8u=3&m@k6-l8pcf-@zspwjh8y*3dw#u)@r0dk&8&4x_^e7qk1-'
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
+#User
+AUTH_USER_MODEL = 'user_auth.User'
 
 # Application definition
 
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework_swagger',
+    'user_auth',
 ]
 
 MIDDLEWARE = [
@@ -109,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Bucharest'
 
 USE_I18N = True
 
