@@ -26,9 +26,30 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+SITE_ID = 1
+
 # User
 
 AUTH_USER_MODEL = 'users.User'
+AUTHENTICATION_METHOD = 'email'
+
+# EMAIL
+
+EMAIL_BACKEND ='django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'test.club.django@gmail.com'
+EMAIL_HOST_PASSWORD = 'Djangotest'
+DEFAULT_FROM_EMAIL = 'Club_Management'
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ]
+}
 
 # Application definition
 
@@ -39,13 +60,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'rest_framework_swagger',
     'rest_framework',
+    'rest_framework.authtoken',
+    'rest_auth',
     'Athletes',
     'users',
     'Club',
     'Events',
+    'api',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -130,3 +161,4 @@ try:
     from .local_settings import *
 except Exception:
     pass
+
