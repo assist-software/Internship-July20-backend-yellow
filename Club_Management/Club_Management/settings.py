@@ -27,30 +27,6 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 SITE_ID = 1
-
-# User
-
-AUTH_USER_MODEL = 'users.User'
-AUTHENTICATION_METHOD = 'email'
-
-# EMAIL
-
-EMAIL_BACKEND ='django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_USE_TLS = True
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'test.club.django@gmail.com'
-EMAIL_HOST_PASSWORD = 'Djangotest'
-DEFAULT_FROM_EMAIL = 'Club_Management'
-
-REST_FRAMEWORK = {
-    # Use Django's standard `django.contrib.auth` permissions,
-    # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
-}
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -72,6 +48,22 @@ INSTALLED_APPS = [
     'api',
 ]
 
+# User
+
+AUTH_USER_MODEL = 'users.User'
+AUTHENTICATION_METHOD = 'email'
+
+# EMAIL
+
+EMAIL_BACKEND ='django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'test.club.django@gmail.com'
+EMAIL_HOST_PASSWORD = 'Djangotest'
+DEFAULT_FROM_EMAIL = 'Club_Management'
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -90,10 +82,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'Club_Management.urls'
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [TEMPLATE_DIR, ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

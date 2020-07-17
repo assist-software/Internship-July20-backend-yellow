@@ -3,17 +3,7 @@ from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, Permi
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
-from rest_framework import serializers
-
-
-class UserSerializer(serializers.Serializer):
-    first_name = models.CharField(blank=True, null=True, max_length=30)
-    last_name = models.CharField(blank=True, null=True, max_length=150)
-    email = models.EmailField()
-    height = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(400)])
-    weight = models.FloatField(blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(400)])
-    age = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(200)])
-    role = models.IntegerField()
+from .serializers import UserSerializer
 
 
 class UserManager(BaseUserManager):
