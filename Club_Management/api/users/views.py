@@ -85,7 +85,8 @@ def invite(request):
     except User.DoesNotExist:
         pass
     password = User.objects.make_random_password()
-    newuser = User.objects.create_user(email=email, first_name='', last_name='', height=None, weight=None, password=password, role=2, age=18)
+    newuser = User.objects.create_user(email=email, first_name='', last_name='', height=None, weight=None,
+                                       password=password, role=2, age=18)
     newuser.save()
     message = ('Hello Mr/Mrs!\n'
                'You are invited  by {} to join Club Management.\n'
@@ -94,7 +95,8 @@ def invite(request):
                'Login using the following credentials:\n'
                'email : {}\n'
                'password : {}\n'
-               'Club Management team.').format(user.get_full_name(), 'http://127.0.0.1:8000/api/signin/', email, password)
+               'Club Management team.').format(user.get_full_name(), 'http://127.0.0.1:8000/api/signin/',
+                                               email, password)
     send_mail('Club Management Invite', message, 'test.club.django@gmail.com', [email], fail_silently=False, )
     return Response({'Success:': 'The email has been sent.'},
                     status=HTTP_200_OK)
