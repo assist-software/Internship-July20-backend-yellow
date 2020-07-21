@@ -3,17 +3,7 @@ from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, Permi
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
-from rest_framework import serializers
-
-
-class UserSerializer(serializers.Serializer):
-    first_name = models.CharField(blank=True, null=True, max_length=30)
-    last_name = models.CharField(blank=True, null=True, max_length=150)
-    email = models.EmailField()
-    height = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(400)])
-    weight = models.FloatField(blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(400)])
-    age = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(200)])
-    role = models.IntegerField()
+from .serializers import UserSerializer
 
 
 class UserManager(BaseUserManager):
@@ -94,12 +84,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     ADMIN = 0
     COACH = 1
     ATHLETE = 2
-    TYPES = [
+    MALE = 0
+    FEMALE =1
+    ROLES = [
         (ADMIN, 'Admin'),
         (COACH, 'Coach'),
         (ATHLETE, 'Athlete')
     ]
 
+    GENDERS = [
+        (MALE, 'Male'),
+        (FEMALE, 'Female')
+    ]
     first_name = models.CharField(_('First name'), max_length=30, blank=True)
     last_name = models.CharField(_('Last name'), max_length=50, blank=True)
     email = models.EmailField(verbose_name=_('Email address'), max_length=255, unique=True)
@@ -108,7 +104,8 @@ class User(AbstractBaseUser, PermissionsMixin):
                                  validators=[MinValueValidator(0), MaxValueValidator(400)])
     weight = models.FloatField(_('Weight'), null=True, blank=True,
                                validators=[MinValueValidator(0), MaxValueValidator(400)])
-    age = models.PositiveIntegerField(_('Age'), validators=[MinValueValidator(0), MaxValueValidator(200)])
+    age = models.PositiveIntegerField(_('Age'), validators=[MinValueValidator(0), MaxValueValidator(200)],
+                                      blank=True, null=True)
 
     is_staff = models.BooleanField(_('Staff status'), default=True,
                                    help_text=_('Designates whether the user can log into this admin site.')
@@ -117,14 +114,14 @@ class User(AbstractBaseUser, PermissionsMixin):
                                     help_text=_('Designates whether this user should be treated as active. '
                                                 'Unselect this instead of deleting accounts.'),
                                     )
-    primary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE, related_name='Primary'
-                                      , help_text=_('Choose a primary sport.'))
+    primary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE,
+                                      related_name='Primary', help_text=_('Choose a primary sport.'))
     secondary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE,
-                                        related_name='Secondary'
-                                        , help_text=_('Choose a secondary sport.'))
-
+                                        related_name='Secondary', help_text=_('Choose a secondary sport.'))
+    #gender = models.IntegerField(_('Gender'), choices=GENDERS, default=MALE, blank=True)
+    #profile_image = models.ImageField(upload_to="", blank=True, null=True)
+    role = models.IntegerField(_('Role'), choices=ROLES, default=ADMIN)
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
-    role = models.IntegerField(_('Role'), choices=TYPES, default=ADMIN)
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -136,7 +133,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         return full_name.strip()
 
     def __str__(self):
-        return f"{self.get_full_name()} <{self.email}, height:{self.height}, weight:{self.weight}, age:{self.age}, role:{self.role}>"
+        return f"{self.get_full_name()} <{self.email}, height:{self.height}, weight:{self.weight}, age:{self.age}, " \
+               f"role:{self.role}>"
 
     def has_perm(self, perm, obj=None):
         # Does the user have a specific permission?
