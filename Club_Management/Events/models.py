@@ -17,7 +17,7 @@ class Events(models.Model):
 
 class Participants(models.Model):
     event = models.ForeignKey(Events, on_delete=models.CASCADE)
-    member = models.ForeignKey('Club.Members_club', on_delete=models.CASCADE)
+    member = models.ForeignKey('Club.MembersClub', on_delete=models.CASCADE)
     is_invited = models.BooleanField(default=False)
     is_requested = models.BooleanField(default=False)
     is_member = models.BooleanField(default=False)
