@@ -3,7 +3,6 @@ from rest_framework import serializers
 from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, PermissionsMixin)
 from django.core.validators import MinValueValidator, MaxValueValidator
 import os
-from Club.models import Club,Members_club
 import users
 from users import models
 from django.contrib.auth.models import User
@@ -30,3 +29,7 @@ class AthleteSerializer(serializers.Serializer):
 
     def Create(self,validated_data):
         return users.objects.create(**validated_data)
+
+
+class SportsSerializer(serializers.Serializer):
+    description = serializers.CharField(max_length=255)
