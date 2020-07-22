@@ -111,6 +111,7 @@ def delete_edit(request, id):
                         "last_name": atl.last_name,
                         "email": atl.email,
                         "age": atl.age,
+                         "gender": gender,
                          "height": atl.height,
                          "weight": atl.weight,
                         "primary_sport": atl.primary_sport,
@@ -123,7 +124,10 @@ def delete_edit(request, id):
         if len(name) < 2:
             name.append("")
         if name is None:
-            return Response({"error": "Please provide a name"}, status=HTTP_400_BAD_REQUEST)
+            pass
+        else:
+            user.first_name = name[0]
+            user.last_name = name[1]
         age = request.data.get("age")
         if age is None:
             return Response({"error": "Please provide an age"}, status=HTTP_400_BAD_REQUEST)
@@ -139,13 +143,19 @@ def delete_edit(request, id):
         weight = request.data.get("weight")
         if weight is None:
             return Response({"error": "Please provide a weight"}, status=HTTP_400_BAD_REQUEST)
-        '''
-        gen = request.data.get("gen")
-        if gen is None:
-            return Response({"error": "Please provide a gender"}, status=HTTP_400_BAD_REQUEST)
-        '''
-        user.first_name = name[0]
-        user.last_name = name[1]
+        gender = request.data.get("gender")
+        if gender is None:
+            pass
+        else:
+            if gender == 'M':
+                user.gender = User.MALE
+            elif gender == 'F':
+                user.gender = User.FEMALE
+        image = request.date.get("avatar")
+        if image is None:
+            pass
+        else:
+            user.profile_image = image
         user.age = age
         user.primary_sport = Sports.objects.get(description=primary_sport)
         user.secondary_sport = Sports.objects.get(description=secondary_sport)
@@ -173,7 +183,6 @@ def register(request):
         return Response({"error": "Email is already used."},status=HTTP_400_BAD_REQUEST)
     except User.DoesNotExist:
         password = request.data.get("password")
-        name = name.split()
         newuser = User.objects.create_user(email=email, first_name=first_name, last_name=last_name, height=None,
                                            weight=None, password=password, role=2, gender=0,
                                            age=18)

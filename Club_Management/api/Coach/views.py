@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from users.models import User
 from django.core.mail import send_mail
 from api.permissions import AdminPermission, CoachPermission, AthletePermission
+from Club.models import Club
 
 
 
@@ -56,7 +57,12 @@ def coach(request):
                         status=HTTP_200_OK)
     else:  # IF REQUEST IS GET
         all_coaches = list(User.objects.filter(role=1).values("id", "first_name", "last_name", "email"))
-        return Response({"success": all_coaches}, status=HTTP_200_OK)
+        for i in range(len(all_coaches)):
+            clubs = list(Club.objects.filter(id_Owner=all_coaches[i]["id"]))
+            temp = all_coaches[i]
+            temp["club"] = clubs
+            all_coaches[i] = temp
+        return Response({"coaches": all_coaches}, status=HTTP_200_OK)
 
 
 @csrf_exempt
