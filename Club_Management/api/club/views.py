@@ -9,29 +9,23 @@ from users.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import permission_classes, api_view
 from Club.models import Club, MembersClub
+from api.permissions import AdminPermission, CoachPermission, AthletePermission
 
 """ Requests for 'api/club/' path. """
 
 
 @csrf_exempt
 @api_view(["GET", "POST"])
-@permission_classes((AllowAny,))
+@permission_classes((AdminPermission, CoachPermission))
 def create_club(request):
     """ Creating new club:
     Just the COACH have access"""
     if request.method == "POST":
 
         header = request.headers.get('Authorization')
-        if header is None:
-            return Response({'error': 'Access denied. (Header Token)'},
-                            status=status.HTTP_400_BAD_REQUEST)
-        try:
-            token = Token.objects.get(key=header)
-        except Token.DoesNotExist:
-            return Response({'error': 'Invalid Token'},
-                            status=status.HTTP_404_NOT_FOUND)
+        token = Token.objects.get(key=header)
         user = User.objects.get(id=token.user_id)
-        if user.role == 2 or user.role == 0:
+        if user.role == User.ATHLETE or user.role == User.ADMIN:
             return Response({'error': 'Access denied.'})
 
         club = Club(name=request.data.get('name'), id_Owner=user)

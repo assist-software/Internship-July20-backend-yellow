@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from users.models import User, UserManager
 from users.serializers import UserSerializer
 from django.core.mail import send_mail
+from api.permissions import AdminANDCoachPermission
 
 
 @csrf_exempt
@@ -25,7 +26,7 @@ def signin(request):
                         status=HTTP_400_BAD_REQUEST)
     user = authenticate(email=email, password=password)
     if not user:
-        return Response({'error': 'Invalid Credentials'},
+        return Response({'error': "Invalid credentials."},
                         status=HTTP_404_NOT_FOUND)
     token, _ = Token.objects.get_or_create(user=user)
     return Response({'token': token.key},
@@ -60,24 +61,15 @@ def reset_password(request):
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes((AllowAny,))
+@permission_classes((AdminANDCoachPermission,))
 def invite(request):
     header = request.headers.get('Authorization')
+    token = Token.objects.get(key=header)
     email = request.data.get("email")
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
     if email is None:
         return Response({'error': 'Please provide an email.'},
                         status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'},
-                        status=HTTP_404_NOT_FOUND)
     user = User.objects.get(id=token.user_id)
-    if user.role == 2:
-        return Response({'error': 'Access denied.'})
     try:
         exist = User.objects.get(email=email)
         return Response({'error': 'The email is already used'},
@@ -86,7 +78,7 @@ def invite(request):
         pass
     password = User.objects.make_random_password()
     newuser = User.objects.create_user(email=email, first_name='', last_name='', height=None, weight=None,
-                                       password=password, role=2, age=18)
+                                       password=password, role=2, gender=User.MALE, age=18)
     newuser.save()
     message = ('Hello Mr/Mrs!\n'
                'You are invited  by {} to join Club Management.\n'
@@ -95,7 +87,7 @@ def invite(request):
                'Login using the following credentials:\n'
                'email : {}\n'
                'password : {}\n'
-               'Club Management team.').format(user.get_full_name(), 'http://127.0.0.1:8000/api/signin/',
+               'Club Management team.').format(user.get_full_name(), 'http://192.168.1.4:8001/api/signin/',
                                                email, password)
     send_mail('Club Management Invite', message, 'test.club.django@gmail.com', [email], fail_silently=False, )
     return Response({'Success:': 'The email has been sent.'},

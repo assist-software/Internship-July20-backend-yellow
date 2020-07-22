@@ -10,25 +10,14 @@ from rest_framework.status import (
 from rest_framework.response import Response
 from users.models import User
 from django.core.mail import send_mail
-from django.http import JsonResponse
+from api.permissions import AdminPermission, CoachPermission, AthletePermission
+
 
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes((AllowAny,))
+@permission_classes((AdminPermission,))
 def coach(request):
-    header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
-    user = User.objects.get(id=token.user_id)
-    if user.role != 0:
-        return Response({'error': 'Access denied.'})
-
     # IF REQUEST IS POST
     if request.method == "POST":
         name = str(request.data.get('name'))
@@ -63,49 +52,23 @@ def coach(request):
                                                    password)
         send_mail('Club Management Coach Profile Created', message, 'test.club.django@gmail.com', [email],
                   fail_silently=False, )
-        return Response({'Success:': 'The email has been sent.'},
+        return Response({'name': newuser.get_full_name()},
                         status=HTTP_200_OK)
     else:  # IF REQUEST IS GET
         all_coaches = list(User.objects.filter(role=1).values("id", "first_name", "last_name", "email"))
         return Response({"success": all_coaches}, status=HTTP_200_OK)
 
-@csrf_exempt
-@api_view(["POST"])
-@permission_classes((AllowAny,))
-def register(request):
-    header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
-    user = User.objects.get(id=token.user_id)
-    if user.role != 1:
-        return Response({'error': 'Access denied.'})
-
-    name = request.headers.get('name')
-
 
 @csrf_exempt
 @api_view(["DELETE", "PUT", "GET"])
-@permission_classes((AllowAny,))
+@permission_classes((AdminPermission, CoachPermission))
 def delete_edit(request, id):
     header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
+    token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
 
     # IF METHOD IS GET
     if request.method == "GET":
-        if user.role == 2:
-            return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id, role=1)
             return Response({'first_name': coach.first_name,
@@ -116,7 +79,7 @@ def delete_edit(request, id):
             return Response({'error': 'Coach does not exist.'}, status=HTTP_404_NOT_FOUND)
     # IF METHOD IS DELETE
     if request.method == "DELETE":
-        if user.role != 0:
+        if user.role != User.ADMIN:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
@@ -125,25 +88,26 @@ def delete_edit(request, id):
         except User.DoesNotExist:
             return Response({'error': 'Coach does not exist.'}, status=HTTP_404_NOT_FOUND)
     else:  # IF METHOD IS PUT
-        if user.role != 1:
+        if user.role != User.COACH:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
             if token.user_id != id:
                 return Response({'error': 'Coaches can only edit themselves.'}, status=HTTP_400_BAD_REQUEST)
-            name = str(request.data.get('name'))
+            first_name = request.data.get('name')
+            last_name = request.data.get('name')
             email = request.data.get("email")
             if email is None:
                 return Response({'error': 'Please provide an email.'},
                                 status=HTTP_400_BAD_REQUEST)
-            if name == "":
+            if first_name == "":
                 return Response({'error': 'Please provide a name.'},
                                 status=HTTP_400_BAD_REQUEST)
-            name = name.split()
-            if len(name) < 2:
-                name.append("")
-            coach.first_name = name[0]
-            coach.last_name = name[1]
+            if last_name == "":
+                return Response({'error': 'Please provide a name.'},
+                                status=HTTP_400_BAD_REQUEST)
+            coach.first_name = first_name
+            coach.last_name = last_name
             coach.email = email
             coach.save()
             return Response({'success': 'The coach was edited.'}, status=HTTP_200_OK)

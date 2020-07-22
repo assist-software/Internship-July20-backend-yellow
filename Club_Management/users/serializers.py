@@ -13,6 +13,7 @@ class UserSerializer(serializers.Serializer):
     primary_sport = serializers.IntegerField(read_only=True, default=None)
     secondary_sport = serializers.IntegerField(read_only=True, default=None)
     role = serializers.IntegerField(read_only=True)
+    gender = serializers.IntegerField(read_only=True)
 
     def create(self, validated_data):
         user = models.User.objects.create_user(
