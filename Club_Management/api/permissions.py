@@ -6,7 +6,7 @@ from users.models import User
 class AdminPermission(permissions.BasePermission):
     # Permission for ADMIN users
     def has_permission(self, request, view):
-        header = request.META['HTTP_AUTHORIZATION']
+        header = request.META['HTTP_TOKEN']
         if header is None:
             return False
         try:
@@ -22,7 +22,7 @@ class AdminPermission(permissions.BasePermission):
 class CoachPermission(permissions.BasePermission):
     # Permission for COACH users
     def has_permission(self, request, view):
-        header = request.META['HTTP_AUTHORIZATION']
+        header = request.META['HTTP_TOKEN']
         import ipdb
         ipdb.set_trace()
         if header is None:
@@ -40,7 +40,7 @@ class CoachPermission(permissions.BasePermission):
 class AdminANDCoachPermission(permissions.BasePermission):
     # Permission for ADMIN or COACH users
     def has_permission(self, request, view):
-        header = request.META['HTTP_AUTHORIZATION']
+        header = request.META['HTTP_TOKEN']
         if header is None:
             return False
         try:
@@ -56,7 +56,7 @@ class AdminANDCoachPermission(permissions.BasePermission):
 class AthletePermission(permissions.BasePermission):
     # Permission for COACH users
     def has_permission(self, request, view):
-        header = request.META['HTTP_AUTHORIZATION']
+        header = request.META['HTTP_TOKEN']
         if header is None:
             return False
         try:
@@ -72,10 +72,11 @@ class AthletePermission(permissions.BasePermission):
 class AllPermission(permissions.BasePermission):
     # Permission for COACH users
     def has_permission(self, request, view):
-        header = request.META['HTTP_AUTHORIZATION']
+        header = request.META['HTTP_TOKEN']
         if header is None:
             return False
         try:
             token = Token.objects.get(key=header)
         except Token.DoesNotExist:
             return False
+        return True

@@ -25,12 +25,13 @@ def validate_status(attrs):
 
 
 class MembersClubSerializer(serializers.Serializer):
+    id_club = ClubSerializer()
     is_invited = serializers.BooleanField(default=False)
     is_requested = serializers.BooleanField(default=False)
     is_member = serializers.BooleanField(default=False)
 
     def create(self, validated_data):
-        return MembersClub(**validated_data)
+        return MembersClub.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         instance.description = validated_data.get('description', instance.description)
