@@ -1,6 +1,5 @@
-from django.urls import path, include
-from django.conf.urls import url
-from .views import *
+from django.urls import path
+from .views import create_club, show_club, join_club
 
 urlpatterns = [
     path('club/', create_club, name='create'),

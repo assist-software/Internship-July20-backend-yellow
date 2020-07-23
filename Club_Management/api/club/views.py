@@ -1,6 +1,5 @@
-from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -9,7 +8,7 @@ from users.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import permission_classes, api_view
 from Club.models import Club, MembersClub
-from api.permissions import AthletePermission, AllPermission, AdminANDCoachPermission
+from api.permissions import AthletePermission, AllPermission, AdminORCoachPermission
 
 """ Requests for 'api/club/' path. """
 
@@ -22,7 +21,7 @@ def create_club(request):
     Just the COACH have access"""
     if request.method == "POST":
 
-        header = request.headers.get('token')
+        header = request.headers.get('Authorization')
         token = Token.objects.get(key=header)
         user = User.objects.get(id=token.user_id)
         if user.role == User.ATHLETE or user.role == User.ADMIN:
@@ -30,6 +29,10 @@ def create_club(request):
 
         club = Club(name=request.data.get('name'), id_Owner=user)
         club.save()
+        users = User.objects.all()
+        for us in users:
+            non_member = MembersClub(id_User=us, id_club=club, is_invited=False, is_requested=False, is_member=False)
+            non_member.save()
         serializers = ClubSerializer(data=club.__dict__)
         if serializers.is_valid():
             return Response(serializers.data, status=status.HTTP_201_CREATED)
@@ -41,7 +44,7 @@ def create_club(request):
     The ATHLETE will see the ones that he/she is invited/ requested to enter/ is a member"""
     if request.method == "GET":
 
-        header = request.headers.get('token')
+        header = request.headers.get('Authorization')
         token = Token.objects.get(key=header)
         user = User.objects.get(id=token.user_id)
         if user.role == User.ATHLETE:
@@ -62,14 +65,14 @@ def create_club(request):
 
 @csrf_exempt
 @api_view(["GET", "PUT", "DELETE"])
-@permission_classes((AdminANDCoachPermission,))
+@permission_classes((AdminORCoachPermission,))
 def show_club(request, club_id):
     """ Getting a club by ID:
     The ADMIN will be able to see all the clubs, no matter the ID and owner.
     The COACH will be able to see all the clubs he/she owns, no matter the ID."""
     if request.method == "GET":
 
-        header = request.headers.get('token')
+        header = request.headers.get('Authorization')
         token = Token.objects.get(key=header)
         user = User.objects.get(id=token.user_id)
         if user.role == User.ATHLETE:
@@ -122,14 +125,17 @@ def join_club(request, club_id):
     """ Joining a club by ID:
     Just the ATHLETE has access to access the join path and he will be registered
     in a list of members the requested to enter the club."""
-    header = request.headers.get('token')
+    header = request.headers.get('Authorization')
     token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
     if user.role == User.COACH or user.role == User.ADMIN:
         return Response({'error': 'Access denied.'})
-    if MembersClub.objects.filter(id_User=user, id_club=get_object_or_404(Club, id=club_id)):
+    if MembersClub.objects.filter(id_User=user, id_club=get_object_or_404(Club, id=club_id), is_requested=True):
         return Response({"Your requested already to join this club"})
     else:
-        new_member = MembersClub(id_User=user, id_club=get_object_or_404(Club, id=club_id), is_requested=True)
-        new_member.save()
-        return Response({"Your request had been registered"}, status=status.HTTP_202_ACCEPTED)
+        new_member = (get_object_or_404(MembersClub, id_club=club_id, id_User=user))
+        new_member.is_requested = True
+    new_member.save()
+    return Response({"Your request had been registered"}, status=status.HTTP_202_ACCEPTED)
+
+

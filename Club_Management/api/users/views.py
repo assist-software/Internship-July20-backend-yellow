@@ -9,10 +9,9 @@ from rest_framework.status import (
     HTTP_200_OK
 )
 from rest_framework.response import Response
-from users.models import User, UserManager
-from users.serializers import UserSerializer
+from users.models import User
 from django.core.mail import send_mail
-from api.permissions import AdminANDCoachPermission
+from api.permissions import AdminORCoachPermission
 
 
 @csrf_exempt
@@ -29,8 +28,11 @@ def signin(request):
         return Response({'error': "Invalid credentials."},
                         status=HTTP_404_NOT_FOUND)
     token, _ = Token.objects.get_or_create(user=user)
-    return Response({'token': token.key},
+    return Response({'token': token.key,
+                     'id': user.id,
+                     'role': user.role},
                     status=HTTP_200_OK)
+
 
 @csrf_exempt
 @api_view(["POST"])
@@ -53,15 +55,15 @@ def reset_password(request):
                'You requested that your password to be reset.\n'
                'Your new password is: {}\n'
                'You can login using the following link: {}\n'
-               'Club Management team.').format(user.get_full_name(), password, 'http://127.0.0.1:8000/api/signin/')
-    send_mail('Club Management New Password', message, 'test.club.django@gmail.com', [email], fail_silently=False,)
+               'Club Management team.').format(user.get_full_name(), password, 'http://192.168.1.4:8001/api/signin/')
+    send_mail('Club Management New Password', message, 'test.club.django@gmail.com', [email], fail_silently=False, )
     return Response({'Success:': 'The email has been sent.'},
                     status=HTTP_200_OK)
 
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes((AdminANDCoachPermission,))
+@permission_classes((AdminORCoachPermission,))
 def invite(request):
     header = request.headers.get('Authorization')
     token = Token.objects.get(key=header)
@@ -77,9 +79,9 @@ def invite(request):
     except User.DoesNotExist:
         pass
     password = User.objects.make_random_password()
-    newuser = User.objects.create_user(email=email, first_name='', last_name='', height=None, weight=None,
-                                       password=password, role=2, gender=User.MALE, age=18)
-    newuser.save()
+    new_user = User.objects.create_user(email=email, first_name='', last_name='', height=None, weight=None,
+                                        password=password, role=User.ATHLETE, gender=User.MALE, age=18)
+    new_user.save()
     message = ('Hello Mr/Mrs!\n'
                'You are invited  by {} to join Club Management.\n'
                'Your account was auto generated using your email.\n'

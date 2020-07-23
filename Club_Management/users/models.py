@@ -4,6 +4,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .serializers import UserSerializer
+from django.core.files.storage import FileSystemStorage
+from Athletes.models import Sports
+fs = FileSystemStorage(location='photos/')
 
 
 class UserManager(BaseUserManager):
@@ -114,7 +117,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     weight = models.FloatField(_('Weight'), null=True, blank=True,
                                validators=[MinValueValidator(0), MaxValueValidator(400)])
     age = models.PositiveIntegerField(_('Age'), validators=[MinValueValidator(0), MaxValueValidator(200)],
-                                      blank=True, null=True)
+                                      blank=True, null=True, default=0)
 
     is_staff = models.BooleanField(_('Staff status'), default=True,
                                    help_text=_('Designates whether the user can log into this admin site.')
@@ -128,7 +131,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     secondary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE,
                                         related_name='Secondary', help_text=_('Choose a secondary sport.'))
     gender = models.IntegerField(_('Gender'), choices=GENDERS, default=MALE, blank=True)
-    profile_image = models.ImageField(blank=True, null=True)
+    profile_image = models.CharField(max_length=255, blank=True, null=True)
     role = models.IntegerField(_('Role'), choices=ROLES, default=ADMIN)
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     objects = UserManager()

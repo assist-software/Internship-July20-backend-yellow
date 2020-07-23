@@ -1,11 +1,8 @@
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
 from rest_framework import status
-from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST
-
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
 from Events.models import Events, Participants, Workout
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
@@ -13,34 +10,28 @@ from users.models import User
 from Club.models import Club
 from Athletes.models import Sports
 from Club.models import MembersClub
-
-
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.parsers import JSONParser
 from Events.serializers import EventsSerializer
+from api.permissions import AdminORCoachPermission, AthletePermission, CoachPermission
 
 
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AdminORCoachPermission, ])
 def event_post(request):
-    header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
-    user = User.objects.get(id=token.user_id)
-    if user.role == 2:
-        return Response({'error': 'Access denied.'})
+    """ Create new event.
+    Just Admins and Coaches have access. """
 
+    header = request.headers.get('Authorization')
+    token = Token.objects.get(key=header)
+    user = User.objects.get(id=token.user_id)
     if request.method == "POST":
-        # import ipdb
-        # ipdb.set_trace()
-        event = Events(club_id=Club.objects.get(name=request.data.get('club')), name=request.data.get('name'), description=request.data.get('description'),
+
+        event = Events(club_id=Club.objects.get(name=request.data.get('club')), name=request.data.get('name'),
+                       description=request.data.get('description'),
                        location=request.data.get('location'), date=request.data.get('date'),
-                       time=request.data.get('time'), sport_id=Sports.objects.get(description=request.data.get('sport')))
+                       time=request.data.get('time'),
+                       sport_id=Sports.objects.get(description=request.data.get('sport')))
         event.save()
         serializers = EventsSerializer(data=event.__dict__)
         if serializers.is_valid():
@@ -48,85 +39,68 @@ def event_post(request):
             return Response(serializers.data, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AthletePermission, ])
 def event_join(request, id_event):
+    """ Joining an event by ID:
+        Just the ATHLETE has access to access the join path and he will be registered
+        in a list of participants the requested to register at the events."""
+
     header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
+    token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
-    if user.role != 2:
-        return Response({'error': 'Access denied.'})
 
     ev = Events.objects.get(id=id_event)
     try:
         mem_cl = MembersClub.objects.get(id_club=ev.club_id, id_User=user)
-        if mem_cl.id_User == user:
+        if Participants.objects.filter(event=ev, member=mem_cl):
+            return Response({"Your requested already to join this event."})
+        else:
             new_request = Participants(event=ev, member=mem_cl, is_invited=False,
                                        is_requested=True, is_participant=False)
             new_request.save()
-            serializers = EventsSerializer(data=new_request.__dict__)
-            if serializers.is_valid():
-                return Response(status=status.HTTP_202_ACCEPTED)
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"Your request had been registered"}, status=status.HTTP_202_ACCEPTED)
     except MembersClub.DoesNotExist:
         return Response(status=HTTP_404_NOT_FOUND)
 
 
-
-
 @csrf_exempt
 @api_view(['GET'])
+@permission_classes([AthletePermission, ])
 def event_get(request):
+    """Listing all events for all joined clubs.
+    The endpoint should be accessible by all authenticated Athletes.
+    """
     header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
+    token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
-    if user.role != 2:
-        return Response({'error': 'Access denied.'})
 
     clubs = list(MembersClub.objects.filter(id_User=user).values("id_club"))
-    print(clubs)
-    final_list= list()
+    final_list = list()
     for club in clubs:
-        ev=list(Events.objects.filter(club_id=club["id_club"]).values("name","description","location","date","time","sport_id"))
+        ev = list(Events.objects.filter(club_id=club["id_club"]).values("name", "description", "location",
+                                                                        "date", "time", "sport_id"))
         for i in ev:
             i["sport_id"] = Sports.objects.get(id=i["sport_id"]).description
         final_list.append(ev)
 
     if request.method == 'GET':
-
         return JsonResponse(final_list, safe=False)
-
 
 
 @csrf_exempt
 @api_view(['DELETE'])
-@permission_classes((AllowAny,))
+@permission_classes((CoachPermission, ))
 def event_delete(request, id_event):
+    """ Delete an event.
+    The endpoint should be accessible by all authenticated Coaches
+    """
 
     header = request.headers.get('Authorization')
-    if header is None:
-            return Response({'error': 'Access denied. (Header Token)'},
-                            status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
+    token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
-    if user.role !=1:
-        return Response({'error': 'Access denied.'})
-
     if request.method == "DELETE":
         try:
             event = Events.objects.get(id=id_event)
@@ -137,32 +111,41 @@ def event_delete(request, id_event):
     else:
         pass
 
+
 @csrf_exempt
 @api_view(['GET'])
-@permission_classes((AllowAny,))
+@permission_classes((CoachPermission,))
 def event_get_detail(request, id_event):
-    header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
-    user = User.objects.get(id=token.user_id)
-    if user.role != 1:
-        return Response({'error': 'Access denied.'})
+    """ Get event info and a list of athletes that have
+    requested to join the event.
+    The endpoint should be accessible by all authenticated Coaches."""
 
     if request.method == "GET":
         try:
-            event = Events.objects.get(id=id_event)
-            return Response({"name": event.name,
-                             "description": event.description,
-                             "location": event.location,
-                             "date":event.date,
-                             "time":event.time,
-                             "sport_id":event.sport_id
-                             })
+            events = list(Events.objects.filter(id=id_event).values("id", "name", "description", "location",
+                                                                    "date", "time", "sport_id"))
+            final_list = list()
+            final_list.append(events)
+
+            for e in events:
+                participants = list(Participants.objects.filter(event=e["id"], is_requested=True).values("member"))
+                for p in participants:
+                    part_list = list(MembersClub.objects.filter(id=p["member"]).values("id_User"))
+                    for d in part_list:
+                        detail_list = list(User.objects.filter(id=d["id_User"]).values("first_name", "last_name",
+                                                                                       "email", "height", "weight",
+                                                                                       "age", "role", "gender",
+                                                                                       "primary_sport",
+                                                                                       "secondary_sport"))
+                        for part in detail_list:
+                            if part["gender"] == User.MALE:
+                                part["gender"] = "Male"
+                            else:
+                                part["gender"] = "Female"
+
+                        final_list.append(detail_list)
+
+            return JsonResponse(final_list, safe=False)
         except Events.DoesNotExist:
             return Response({'error': 'Event does not exist.'}, status=HTTP_404_NOT_FOUND)
     else:
@@ -171,72 +154,45 @@ def event_get_detail(request, id_event):
 
 @csrf_exempt
 @api_view(['PUT'])
-@permission_classes((AllowAny,))
+@permission_classes((CoachPermission,))
 def event_put(request, id_event):
-    header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
-    user = User.objects.get(id=token.user_id)
-    if user.role != 1:
-        return Response({'error': 'Access denied.'})
-
+    """Edit an event by id.
+    The endpoint should be accessible by all authenticated Coaches
+    """
     if request.method == "PUT":
-
-        header = request.headers.get('Authorization')
-        if header is None:
-            return Response({'error': 'Access denied. (Header Token)'},
-                            status=status.HTTP_400_BAD_REQUEST)
-        try:
-            token = Token.objects.get(key=header)
-        except Token.DoesNotExist:
-            return Response({'error': 'Invalid Token'},
-                            status=status.HTTP_404_NOT_FOUND)
-        user = User.objects.get(id=token.user_id)
-        if user.role == 2 or user.role == 0:
-            return Response({'error': 'Access denied.'})
-
         event = (get_object_or_404(Events, id=id_event))
         event.club_id = Club.objects.get(name=request.data.get('club'))
         event.name = request.data.get('name')
         event.description = request.data.get('description')
         event.location = request.data.get('location')
         event.date = request.data.get('date')
-        event.time= request.data.get('time')
-        event.sport_id= Sports.objects.get(description=request.data.get('sport'))
+        event.time = request.data.get('time')
+        event.sport_id = Sports.objects.get(description=request.data.get('sport'))
 
         event.save()
         return Response(status=HTTP_200_OK)
 
+
 # workout
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AthletePermission, ])
 def workout_post(request):
+    """ Register an athlete progress for the event.
+    The endpoint should be accessible by all authenticated Athletes """
+
     header = request.headers.get('Authorization')
-    if header is None:
-        return Response({'error': 'Access denied. (Header Token)'},
-                        status=HTTP_400_BAD_REQUEST)
-    try:
-        token = Token.objects.get(key=header)
-    except Token.DoesNotExist:
-        return Response({'error': 'Invalid Token'}, status=HTTP_404_NOT_FOUND)
+    token = Token.objects.get(key=header)
     user = User.objects.get(id=token.user_id)
-    if user.role != 2:
-        return Response({'error': 'Access denied.'})
 
     if request.method == "POST":
-        # import ipdb
-        # ipdb.set_trace()
         workout = Workout(owner=user, name=request.data.get('name'), description=request.data.get('description'),
                           event=Events.objects.get(name=request.data.get('event')),
                           latitude=request.data.get('latitude'),
                           longitude=request.data.get('longitude'), radius=request.data.get('radius'),
-                          duration=request.data.get('duration'),distance=request.data.get('distance'),
-                          average_hr=request.data.get('average_hr'),calories_burned=request.data.get('calories_burned'),
+                          duration=request.data.get('duration'), distance=request.data.get('distance'),
+                          average_hr=request.data.get('average_hr'),
+                          calories_burned=request.data.get('calories_burned'),
                           average_speed=request.data.get('average_speed'),
                           workout_effectiveness=request.data.get('workout_effectiveness'),
                           heart_rate=request.data.get('heart_rate'))
@@ -247,3 +203,22 @@ def workout_post(request):
             return Response(serializers.data, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes((AthletePermission,))
+def get_detail_workout(request):
+    """ List workout history for an Athlete.
+    The endpoint should be accessible by all authenticated Athletes """
+
+    header = request.headers.get('Authorization')
+    token = Token.objects.get(key=header)
+    user = User.objects.get(id=token.user_id)
+    workout = list(Workout.objects.filter(owner=user).values("name", "event", "latitude", "longitude", "radius",
+                                                             "duration", "distance", "average_hr", "calories_burned",
+                                                             "average_speed", "workout_effectiveness", "heart_rate"))
+    for w in workout:
+        w["event"] = Events.objects.get(id=w["event"]).date
+
+    if request.method == 'GET':
+        return JsonResponse(workout, safe=False)

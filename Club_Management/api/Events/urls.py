@@ -1,6 +1,6 @@
-from django.urls import path, include
-from django.conf.urls import url
-from .views import *
+from django.urls import path
+from .views import event_get, event_post, event_join, event_get_detail, event_put, event_delete
+from .views import workout_post, get_detail_workout
 
 
 urlpatterns = [
@@ -11,5 +11,6 @@ urlpatterns = [
     path('event/join/<int:id_event>/', event_join, name='join event'),
     path('event/put/<int:id_event>/', event_put, name='edit event'),
     path('workout/create/', workout_post, name='create workout'),
+    path('workout/view/', get_detail_workout, name='detail workout'),
 
 ]
