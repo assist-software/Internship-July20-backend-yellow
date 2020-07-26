@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from Athletes.serializers import SportSerializer
 from Events.models import *
 from Athletes.models import Sports
 from Club.serializers import ClubSerializer
@@ -12,7 +14,7 @@ class EventsSerializer(serializers.Serializer):
     location = serializers.CharField(max_length=300,required=False)
     date = serializers.DateField(required=False)
     time = serializers.TimeField(required=False)
-    #sport_id = SportsSerializer()
+    #sport_id = SportSerializer()
 
     def create(self, validated_data):
         return Events.objects.create(**validated_data)

@@ -130,4 +130,5 @@ dmypy.json
 
 #Local
 local_settings.py
+Club_Management.sql
 .idea

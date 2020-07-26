@@ -40,10 +40,12 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
     'rest_framework',
     'rest_framework.authtoken',
+    'django.contrib.postgres',
+    'drf_yasg',
     'corsheaders',
     'rest_auth',
-    'Athletes',
     'users',
+    'Athletes',
     'Club',
     'Events',
     'api',
@@ -64,11 +66,16 @@ EMAIL_HOST_USER = 'test.club.django@gmail.com'
 EMAIL_HOST_PASSWORD = 'Djangotest'
 DEFAULT_FROM_EMAIL = 'Club_Management'
 
-
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
+    'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
-    ],
+        # 'rest_framework.authentication.BasicAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
 }
 
 MIDDLEWARE = [
@@ -86,13 +93,10 @@ MIDDLEWARE = [
 CORS_ORIGIN_ALLOW_ALL = True
 ROOT_URLCONF = 'Club_Management.urls'
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [TEMPLATE_DIR, ],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

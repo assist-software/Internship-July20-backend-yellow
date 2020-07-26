@@ -1,10 +1,12 @@
 from rest_framework import serializers
 from Club.models import Club, MembersClub
+from users.serializers import UserSerializer
 
 
 class ClubSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=30, required=True)
+    id_Owner = UserSerializer()
 
     def create(self, validated_data):
         return Club.objects.create(**validated_data)
@@ -26,6 +28,7 @@ def validate_status(attrs):
 
 class MembersClubSerializer(serializers.Serializer):
     id_club = ClubSerializer()
+    id_User = UserSerializer()
     is_invited = serializers.BooleanField(default=False)
     is_requested = serializers.BooleanField(default=False)
     is_member = serializers.BooleanField(default=False)

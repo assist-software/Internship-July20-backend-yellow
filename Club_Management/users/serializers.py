@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from Athletes.serializers import SportSerializer
 from . import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -10,8 +12,8 @@ class UserSerializer(serializers.Serializer):
     height = serializers.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(400)], required=False)
     weight = serializers.FloatField(validators=[MinValueValidator(0), MaxValueValidator(400)], required=False)
     age = serializers.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(200)], required=False)
-    primary_sport = serializers.IntegerField(read_only=True, default=None)
-    secondary_sport = serializers.IntegerField(read_only=True, default=None)
+    primary_sport = SportSerializer()
+    secondary_sport = SportSerializer()
     role = serializers.IntegerField(read_only=True)
     gender = serializers.IntegerField(read_only=True)
 

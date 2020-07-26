@@ -3,15 +3,14 @@ from rest_framework.response import Response
 from users.models import User
 from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_200_OK
 )
 from Athletes.models import Sports
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from api.permissions import AdminORCoachPermission, AllPermission
 from Club.models import Club, MembersClub
 from Athletes.serializers import SportSerializer, AthleteSerializer
@@ -19,12 +18,13 @@ from Athletes.serializers import SportSerializer, AthleteSerializer
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes((AdminORCoachPermission,))
+@permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def athlete(request):
-    header = request.headers.get('Authorization')
-    token = Token.objects.get(key=header)
-    user_auth = User.objects.get(id=token.user_id)
-
+    """
+            This endpoint is used to create a new athlete if the request method is POST.
+            And if the request method is GET it returns a list of all athletes.
+            Can be accessed by ADMINS or COACHES.
+    """
     if request.method == "POST":
         name = str(request.data.get('name'))
         if name is None:
@@ -43,13 +43,19 @@ def athlete(request):
         else:
             secondary_sport = Sports.objects.get(description=secondary_sport)
         gender = request.data.get('gender')
-        if gender == 'M':
+        if gender == 'M' or gender == "Male":
             gender = User.MALE
-        elif gender == 'F':
+        elif gender == 'F' or gender == "Female":
             gender = User.FEMALE
         age = request.data.get('age')
+        if age is None:
+            return Response({"error": "Please provide an age"}, status=HTTP_400_BAD_REQUEST)
         height = request.data.get('height')
+        if height is None:
+            return Response({"error": "Please provide a height"}, status=HTTP_400_BAD_REQUEST)
         weight = request.data.get('weight')
+        if weight is None:
+            return Response({"error": "Please provide a weight"}, status=HTTP_400_BAD_REQUEST)
         profile_image = request.data.get('profile_image')
         try:
             user = User.objects.get(email=email)
@@ -85,25 +91,39 @@ def athlete(request):
         return Response({'Success:': 'The athlete was created'},
                         status=HTTP_200_OK)
     else:  # IF REQUEST METHOD IS GET
-        if user_auth.role != User.ADMIN:
+        if request.user.role != User.ADMIN:
             return Response({"error": "Access denied"}, status=HTTP_400_BAD_REQUEST)
-        all_athletes = list(User.objects.filter(role=2).values("id", "first_name", "last_name", "age",
-                                                               "height", "weight", "gender", "email",
-                                                               "primary_sport", "secondary_sport", ))
-        return Response(all_athletes, status=HTTP_200_OK)
+        all_athletes = User.objects.filter(role=2).values("id", "first_name", "last_name", "age",
+                                                          "height", "weight", "gender", "email",
+                                                          "primary_sport", "secondary_sport", )
+        for a in all_athletes:
+            try:
+                a["primary_sport"] = Sports.objects.get(id=a["primary_sport"]).description
+            except Sports.DoesNotExist:
+                pass
+            try:
+                a["secondary_sport"] = Sports.objects.get(id=a["secondary_sport"]).description
+            except Sports.DoesNotExist:
+                pass
+            if a["gender"] == User.MALE:
+                a["gender"] = "Male"
+            else:
+                a["gender"] = "Female"
+        athletes = AthleteSerializer(all_athletes, many=True)
+        return JsonResponse(athletes.data, safe=False, status=HTTP_200_OK)
 
 
 @csrf_exempt
 @api_view(["DELETE", "PUT", "GET"])
-@permission_classes((AllPermission,))
+@permission_classes((IsAuthenticated, AllPermission,))
 def delete_edit(request, id):
-    header = request.headers.get('Authorization')
-    token = Token.objects.get(key=header)
-    user = User.objects.get(id=token.user_id)
-
+    """
+            This endpoint is used to delete, edit or get an athlete by ID.
+            Can be accessed by ALL Users.
+    """
     # IF METHOD IS DELETE
     if request.method == "DELETE":
-        if user.role != User.ADMIN:
+        if request.user.role != User.ADMIN:
             return Response({'error': 'Access denied.'})
         try:
             athlete = User.objects.get(id=id)
@@ -112,31 +132,34 @@ def delete_edit(request, id):
         except User.DoesNotExist:
             return Response({'error': 'Athlete does not exist.'}, status=HTTP_404_NOT_FOUND)
     if request.method == "GET":
-        atl = User.objects.get(id=id)
-        # atl_ser = AthleteSerializer(atl)
-        return Response({
-            "first_name": atl.first_name,
-            "last_name": atl.last_name,
-            "email": atl.email,
-            "age": atl.age,
-            "gender": User.GENDERS[atl.gender][atl.gender],
-            "height": atl.height,
-            "weight": atl.weight,
-            "primary_sport": atl.primary_sport.description,
-            "secondary_sport": atl.secondary_sport.description}, status=HTTP_200_OK)
-        # return JsonResponse(atl_ser.data, status=HTTP_200_OK)
+        try:
+            atl = User.objects.get(id=id)
+        except User.DoesNotExist:
+            return Response(status=HTTP_400_BAD_REQUEST)
+        atl_to_be_serialized = {"id": atl.id,
+                                "first_name": atl.first_name,
+                                "last_name": atl.last_name,
+                                "email": atl.email,
+                                "age": atl.age,
+                                "gender": User.GENDERS[atl.gender][atl.gender],
+                                "height": atl.height,
+                                "weight": atl.weight,
+                                "primary_sport": atl.primary_sport.description,
+                                "secondary_sport": atl.secondary_sport.description}
+        atl_ser = AthleteSerializer(atl_to_be_serialized)
+        return JsonResponse(atl_ser.data, safe=False, status=HTTP_200_OK)
     if request.method == "PUT":
-        if id != user.id:
+        if id != request.user.id:
             return Response({'error': 'Access denied.'})
         name = str(request.data.get("name"))
         name = name.split()
-        if user.role == User.ATHLETE:
+        if request.user.role == User.ATHLETE:
             pass
         else:
             if len(name) < 2:
                 name.append("")
-            user.first_name = name[0]
-            user.last_name = name[1]
+            request.user.first_name = name[0]
+            request.user.last_name = name[1]
         age = request.data.get("age")
         if age is None:
             return Response({"error": "Please provide an age"}, status=HTTP_400_BAD_REQUEST)
@@ -157,20 +180,20 @@ def delete_edit(request, id):
             pass
         else:
             if gender == 'M':
-                user.gender = User.MALE
+                request.user.gender = User.MALE
             elif gender == 'F':
-                user.gender = User.FEMALE
+                request.user.gender = User.FEMALE
         image = request.data.get('avatar')
         if image is None:
             pass
         else:
-            user.profile_image = image
-        user.age = age
-        user.primary_sport = Sports.objects.get(description=primary_sport)
-        user.secondary_sport = Sports.objects.get(description=secondary_sport)
-        user.height = height
-        user.weight = weight
-        user.save()
+            request.user.profile_image = image
+        request.user.age = age
+        request.user.primary_sport = Sports.objects.get(description=primary_sport)
+        request.user.secondary_sport = Sports.objects.get(description=secondary_sport)
+        request.user.height = height
+        request.user.weight = weight
+        request.user.save()
         return Response({'Success': "Athlete was modified"}, status=HTTP_200_OK)
 
 

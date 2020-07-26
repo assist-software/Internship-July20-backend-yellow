@@ -1,5 +1,5 @@
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
@@ -7,17 +7,25 @@ from rest_framework.status import (
     HTTP_200_OK
 )
 from rest_framework.response import Response
+
+from api.Coach.serializers import CoachSerializer
 from users.models import User
 from django.core.mail import send_mail
-from api.permissions import AdminPermission, CoachPermission
+from rest_framework.permissions import IsAuthenticated
+from api.permissions import AdminPermission, AdminORCoachPermission
 from Club.models import Club
-from django.core.paginator import Paginator
+from django.db.models import Q
 
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes((AdminPermission,))
-def coach(request):
+@permission_classes((IsAuthenticated, AdminPermission, ))
+def coach(request: {}) -> Response:
+    """
+        This endpoint is used to create a new coach if the request method is POST.
+        And if the request method is GET it returns a list of all coaches.
+        Can be accessed by ADMINS.
+    """
     # IF REQUEST IS POST
     if request.method == "POST":
         first_name = request.data.get("first_name")
@@ -53,48 +61,70 @@ def coach(request):
         return Response({'name': new_user.get_full_name()},
                         status=HTTP_200_OK)
     else:  # IF REQUEST IS GET
-        all_coaches = list(User.objects.filter(role=1).values("id", "first_name", "last_name", "email"))
-        for i in range(len(all_coaches)):
-            temp = all_coaches[i]
-            clubs = list(Club.objects.filter(id_Owner=temp["id"]).values("name"))
+        search = request.query_params.get('search')
+        if search is None:
+            search = ""
+        all_coaches = User.objects.filter(role=1).values("id", "first_name", "last_name", "email")
+        final = list()
+        for coach in all_coaches:
+            user = User.objects.get(id=coach["id"])
+            if search in user.get_full_name():
+                clubs = Club.objects.filter(id_Owner=coach["id"]).values("name")
+                all_clubs = ""
+                for j in range(len(clubs)):
+                    if j < 2:
+                        t = clubs[j]
+                        all_clubs = all_clubs + t["name"] + ", "
+                all_clubs = all_clubs[:-2]
+                if len(clubs) != 0 and j != 0:
+                    all_clubs = all_clubs + " + " + str(j - 1)
+                coach["club"] = all_clubs
+                final.append(coach)
+        page = request.query_params.get('page')
+        coaches = CoachSerializer(final, many=True)
+        if page is not None:
+            page = int(page)
+            if page == 1:
+                start = 0
+            else:
+                start = ((page-1)*6)+1
+            return Response({"coaches": coaches.data[start:start+6],
+                             "page_number": len(coaches.data)/6}, status=HTTP_200_OK)
+        else:
+            return JsonResponse({"coaches": c.data}, safe=False, status=HTTP_200_OK)
+
+
+@csrf_exempt
+@api_view(["DELETE", "PUT", "GET"])
+@permission_classes((IsAuthenticated, AdminORCoachPermission, ))
+def delete_edit(request: {}, id: int) -> Response:
+    """
+    This endpoint is used to delete, edit or get a coach by ID
+    Can be accessed by ADMINS AND COACHES
+    """
+
+    # IF METHOD IS GET
+    if request.method == "GET":
+        try:
+            coach = User.objects.get(id=id, role=1)
+            clubs = Club.objects.filter(id_Owner=coach.id).values("name")
             all_clubs = ""
             for j in range(len(clubs)):
                 if j < 2:
                     t = clubs[j]
                     all_clubs = all_clubs + t["name"] + ", "
             all_clubs = all_clubs[:-2]
-            if len(clubs)!=0:
+            if len(clubs) != 0 and j != 0:
                 all_clubs = all_clubs + " + " + str(j - 1)
-            temp["club"] = all_clubs
-            all_coaches[i] = temp
-        return Response({"coaches": all_coaches}, status=HTTP_200_OK)
-
-
-@csrf_exempt
-@api_view(["DELETE", "PUT", "GET"])
-@permission_classes((AdminPermission, CoachPermission))
-def delete_edit(request: {}, id: int) -> Response:
-    """
-    This endpoint is used to delete, edit or get a coach by ID
-    Can be accessed by ADMINS AND COACHES
-     """
-    header = request.headers.get('Authorization')
-    token = Token.objects.get(key=header)
-    user = User.objects.get(id=token.user_id)
-
-    # IF METHOD IS GET
-    if request.method == "GET":
-        try:
-            coach = User.objects.get(id=id, role=1)
-            return Response({'first_name': coach.first_name,
-                             'last_name': coach.last_name,
-                             'email': coach.email,
-                             }, status=HTTP_200_OK)
+            coach_to_be_serialized = {"id": coach.id, "first_name": coach.first_name,
+                                      "last_name": coach.last_name, "email": coach.email, "club": all_clubs}
+            question = CoachSerializer(coach_to_be_serialized)
+            return Response(question.data, status=HTTP_200_OK)
         except User.DoesNotExist:
             return Response({'error': 'Coach does not exist.'}, status=HTTP_404_NOT_FOUND)
     # IF METHOD IS DELETE
     if request.method == "DELETE":
-        if user.role != User.ADMIN:
+        if request.user.role != User.ADMIN:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
@@ -103,11 +133,11 @@ def delete_edit(request: {}, id: int) -> Response:
         except User.DoesNotExist:
             return Response({'error': 'Coach does not exist.'}, status=HTTP_404_NOT_FOUND)
     else:  # IF METHOD IS PUT
-        if user.role != User.COACH:
+        if request.user.role != User.COACH:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
-            if token.user_id != id:
+            if request.user.id != id:
                 return Response({'error': 'Coaches can only edit themselves.'}, status=HTTP_400_BAD_REQUEST)
             first_name = request.data.get('name')
             last_name = request.data.get('name')

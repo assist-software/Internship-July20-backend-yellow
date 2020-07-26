@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import event_get, event_post, event_join, event_get_detail, event_put, event_delete
+from .views import event_get, event_post, event_join, event_get_detail, event_put, event_delete, event_get_all_events, \
+    has_events
 from .views import workout_post, get_detail_workout
 
 
@@ -12,5 +13,7 @@ urlpatterns = [
     path('event/put/<int:id_event>/', event_put, name='edit event'),
     path('workout/create/', workout_post, name='create workout'),
     path('workout/view/', get_detail_workout, name='detail workout'),
+    path('event/all/events/', event_get_all_events, name='all events'),
+    path('event/has_events/', has_events, name='all events'),
 
 ]

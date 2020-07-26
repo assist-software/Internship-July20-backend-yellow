@@ -131,7 +131,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     secondary_sport = models.ForeignKey('Athletes.Sports', blank=True, null=True, on_delete=models.CASCADE,
                                         related_name='Secondary', help_text=_('Choose a secondary sport.'))
     gender = models.IntegerField(_('Gender'), choices=GENDERS, default=MALE, blank=True)
-    profile_image = models.CharField(max_length=255, blank=True, null=True)
+    profile_image = models.TextField(blank=True, null=True)
     role = models.IntegerField(_('Role'), choices=ROLES, default=ADMIN)
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     objects = UserManager()

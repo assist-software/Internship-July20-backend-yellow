@@ -1,8 +1,7 @@
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
@@ -11,6 +10,7 @@ from rest_framework.status import (
 from rest_framework.response import Response
 from users.models import User
 from django.core.mail import send_mail
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from api.permissions import AdminORCoachPermission
 
 
@@ -28,7 +28,7 @@ def signin(request):
         return Response({'error': "Invalid credentials."},
                         status=HTTP_404_NOT_FOUND)
     token, _ = Token.objects.get_or_create(user=user)
-    return Response({'token': token.key,
+    return Response({'token': "Token " + token.key,
                      'id': user.id,
                      'role': user.role},
                     status=HTTP_200_OK)
@@ -63,7 +63,7 @@ def reset_password(request):
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes((AdminORCoachPermission,))
+@permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def invite(request):
     header = request.headers.get('Authorization')
     token = Token.objects.get(key=header)
