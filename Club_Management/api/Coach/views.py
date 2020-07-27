@@ -143,8 +143,8 @@ def delete_edit(request: {}, id: int) -> Response:
             coach = User.objects.get(id=id)
             if request.user.id != id and request.user.id == User.ADMIN:
                 return Response({'error': 'Coaches can only edit themselves.'}, status=HTTP_400_BAD_REQUEST)
-            first_name = request.data.get('name')
-            last_name = request.data.get('name')
+            first_name = request.data.get('first_name')
+            last_name = request.data.get('last_name')
             email = request.data.get("email")
             if email is None:
                 return Response({'error': 'Please provide an email.'},
