@@ -145,7 +145,6 @@ def event_get_detail(request, id_event):
             events = list(Events.objects.filter(id=id_event).values("id", "name", "description", "location",
                                                                     "date", "time", "sport_id"))
             event = events[0]
-            final_list = list()
             f_list = {
                 "id": id_event,
                 "name": event["name"],
@@ -213,8 +212,7 @@ def event_get_detail(request, id_event):
                 f_list.update({'participants_detail': participant_list})
             else:
                 f_list.update({'participants_detail': participant_list})
-            final_list.append(f_list)
-            return JsonResponse(final_list, safe=False)
+            return JsonResponse(f_list, safe=False)
         except Events.DoesNotExist:
             return Response({'error': 'Event does not exist.'}, status=HTTP_404_NOT_FOUND)
     else:
