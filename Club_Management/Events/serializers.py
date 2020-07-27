@@ -7,7 +7,7 @@ from Club.serializers import ClubSerializer
 
 
 class EventsSerializer(serializers.Serializer):
-    id_event = serializers.IntegerField(read_only=True)
+    id = serializers.IntegerField(read_only=True)
     #club_id= ClubSerializer()
     name = serializers.CharField(max_length=30)
     description = serializers.CharField(max_length=300)

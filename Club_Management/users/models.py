@@ -37,7 +37,8 @@ class UserManager(BaseUserManager):
             user.save()
         return user
 
-    def create_superuser(self, email, first_name, last_name, height, weight, age, role, gender, password=None):
+    def create_superuser(self, email, first_name, last_name, height, weight, age, role, gender,
+                         profile_image=None, password=None):
         # Creates and saves an superuser/admin
         user = self.create_user(
             email,
@@ -49,13 +50,15 @@ class UserManager(BaseUserManager):
             age=age,
             role=role,
             gender=gender,
+            profile_image=profile_image,
             commit=False,
         )
         user.is_superuser = True
         user.save()
         return user
 
-    def create_coach(self, email, first_name, last_name, height, weight, age, role, gender, password=None):
+    def create_coach(self, email, first_name, last_name, height, weight, age, role, gender, profile_image=None,
+                     password=None):
         # Creates and saves an coach
         user = self.create_user(
             email,
@@ -67,12 +70,14 @@ class UserManager(BaseUserManager):
             age=age,
             role=role,
             gender=gender,
+            profile_image=profile_image,
             commit=False,
         )
         user.save()
         return user
 
-    def create_athlete(self, email, first_name, last_name, height, weight, age, role, password=None):
+    def create_athlete(self, email, first_name, last_name, height, weight, age, role, gender=None, profile_image=None,
+                       password=None):
         # Creates and saves an athlete
         user = self.create_user(
             email,
@@ -84,6 +89,7 @@ class UserManager(BaseUserManager):
             age=age,
             role=role,
             gender=gender,
+            profile_image=profile_image,
             commit=False,
         )
         user.save()
@@ -108,7 +114,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (MALE, 'Male'),
         (FEMALE, 'Female')
     ]
-    first_name = models.CharField(_('First name'), max_length=30, blank=True)
+    first_name = models.CharField(_('First name'), max_length=50, blank=True)
     last_name = models.CharField(_('Last name'), max_length=50, blank=True)
     email = models.EmailField(verbose_name=_('Email address'), max_length=255, unique=True)
 

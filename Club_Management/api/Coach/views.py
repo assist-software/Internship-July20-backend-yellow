@@ -1,3 +1,5 @@
+from math import ceil
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
@@ -68,7 +70,7 @@ def coach(request: {}) -> Response:
         final = list()
         for coach in all_coaches:
             user = User.objects.get(id=coach["id"])
-            if search in user.get_full_name():
+            if search.lower() in user.get_full_name().lower():
                 clubs = Club.objects.filter(id_Owner=coach["id"]).values("name")
                 all_clubs = ""
                 for j in range(len(clubs)):
@@ -81,17 +83,18 @@ def coach(request: {}) -> Response:
                 coach["club"] = all_clubs
                 final.append(coach)
         page = request.query_params.get('page')
+        on_page = 6
         coaches = CoachSerializer(final, many=True)
         if page is not None:
             page = int(page)
             if page == 1:
                 start = 0
             else:
-                start = ((page-1)*6)+1
-            return Response({"coaches": coaches.data[start:start+6],
-                             "page_number": len(coaches.data)/6}, status=HTTP_200_OK)
+                start = ((page - 1) * (on_page - 1)) + 1
+            return Response({"coaches": coaches.data[start:start+on_page],
+                             "page_number": ceil(len(coaches.data)/on_page)}, status=HTTP_200_OK)
         else:
-            return JsonResponse({"coaches": c.data}, safe=False, status=HTTP_200_OK)
+            return JsonResponse({"coaches": coaches.data}, safe=False, status=HTTP_200_OK)
 
 
 @csrf_exempt
@@ -128,13 +131,14 @@ def delete_edit(request: {}, id: int) -> Response:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
+            clubs = Club.objectes.filter(id_Owner=coach)
+            for club in clubs:
+                club.id_Owner = request.user
             coach.delete()
             return Response({'success': 'The coach was removed.'}, status=HTTP_200_OK)
         except User.DoesNotExist:
             return Response({'error': 'Coach does not exist.'}, status=HTTP_404_NOT_FOUND)
     else:  # IF METHOD IS PUT
-        if request.user.role != User.COACH:
-            return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
             if request.user.id != id:

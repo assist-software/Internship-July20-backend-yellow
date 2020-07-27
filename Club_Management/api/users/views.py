@@ -18,6 +18,11 @@ from api.permissions import AdminORCoachPermission
 @api_view(["POST"])
 @permission_classes((AllowAny,))
 def signin(request):
+    """
+    This endpoint is used to signin.
+    :param request:
+    :return: token:,id:,role:
+    """
     email = request.data.get("email")
     password = request.data.get("password")
     if email is None or password is None:
@@ -38,6 +43,11 @@ def signin(request):
 @api_view(["POST"])
 @permission_classes((AllowAny,))
 def reset_password(request):
+    """
+    This endpoint is used to reset the password of an user.
+    :param request:
+    :return: Response:
+    """
     email = request.data.get("email")
     if email is None:
         return Response({'error': 'Please provide an email.'},
@@ -65,6 +75,11 @@ def reset_password(request):
 @api_view(["POST"])
 @permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def invite(request):
+    """
+    This endpoint is used to invite an athlete by id
+    :param request:
+    :return: Response:
+    """
     header = request.headers.get('Authorization')
     token = Token.objects.get(key=header)
     email = request.data.get("email")

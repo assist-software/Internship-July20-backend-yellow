@@ -9,7 +9,7 @@ from Athletes.models import Sports
 
 class Events(models.Model):
     club_id = models.ForeignKey('Club.Club', null=True, on_delete=models.CASCADE)
-    name = models.CharField(max_length=30,unique=True)
+    name = models.CharField(max_length=30, unique=True)
     description = models.CharField(max_length=300)
     location = models.CharField(max_length=300)
     date = models.DateField()

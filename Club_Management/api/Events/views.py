@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, date
+from math import ceil
+
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
@@ -24,15 +27,21 @@ def event_post(request):
     Just Admins and Coaches have access. """
 
     if request.method == "POST":
+        name = request.data.get('name')
+        description = request.data.get('description')
+        location = request.data.get('location')
+        date = request.data.get('date')
+        time = request.data.get('time')
+        if name is None or description is None or location is None or date is None or time is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         try:
             club = Club.objects.get(name=request.data.get('club'))
         except Club.DoesNotExist:
             return Response(status=HTTP_404_NOT_FOUND)
-        event = Events(club_id=club, name=request.data.get('name'),
-                       description=request.data.get('description'),
-                       location=request.data.get('location'), date=request.data.get('date'),
-                       time=request.data.get('time'),
-                       sport_id=Sports.objects.get(description=request.data.get('sport')))
+        event = Events(club_id=club, name=name,
+                       description=description,
+                       location=location, date=date,
+                       time=time,)
         event.save()
         return Response(status=status.HTTP_201_CREATED)
 
@@ -43,14 +52,20 @@ def event_post(request):
 def event_join(request, id_event):
     """ Joining an event by ID:
         Just the ATHLETE has access to access the join path and he will be registered
-        in a list of participants the requested to register at the events."""
-
+        in a list of participants the joined at the events."""
     ev = Events.objects.get(id=id_event)
     try:
         mem_cl = MembersClub.objects.get(id_club=ev.club_id, id_User=request.user)
-        if Participants.objects.filter(event=ev, member=mem_cl):
-            return Response({"Your requested already to join this event."})
+        if Participants.objects.filter(event=ev, member=mem_cl, is_participant=True):
+            old_request = Participants.objects.filter(event=ev, member=mem_cl, is_participant=True)
+            old_request.delete()
+            new_request = Participants(event=ev, member=mem_cl, is_invited=False,
+                                       is_requested=False, is_participant=False)
+            new_request.save()
+            return Response({"User unjoined."})
         else:
+            old_request = Participants.objects.filter(event=ev, member=mem_cl, is_participant=False)
+            old_request.delete()
             new_request = Participants(event=ev, member=mem_cl, is_invited=False,
                                        is_requested=False, is_participant=True)
             new_request.save()
@@ -58,29 +73,45 @@ def event_join(request, id_event):
     except MembersClub.DoesNotExist:
         return Response(status=HTTP_404_NOT_FOUND)
 
-
 @csrf_exempt
 @api_view(['GET'])
-@permission_classes([AthletePermission, ])
+@permission_classes([AthletePermission, IsAuthenticated])
 def event_get(request):
     """Listing all events for all joined clubs.
     The endpoint should be accessible by all authenticated Athletes.
     """
-
-    clubs = list(MembersClub.objects.filter(id_User=request.user).values("id_club"))
+    clubs = list(MembersClub.objects.filter(id_User=request.user).values("id_club", "id"))
     final_list = list()
     for club in clubs:
-        ev = Events.objects.filter(club_id=club["id_club"], participants=Participants.objects.filter(is_participant=False,).first()).values("id", "name", "location",
-                                                                   "date")
-
-        if len(ev) != 0:
-            final_list.append(ev)
-    srl = list()
-    for club in final_list:
-        for event in club:
-            srl.append(event)
-
-    return JsonResponse(srl, safe=False)
+        ev = list(Events.objects.filter(club_id=club["id_club"]).values("id", "club_id", "name", "location",
+                                                                        "date"))
+        for event in ev:
+            part = Participants.objects.filter(event=event["id"], member=club["id"], is_participant=True)
+            if not part:
+                final_list.append(event)
+            else:
+                pass
+    return JsonResponse(final_list, safe=False)
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([AthletePermission, ])
+def event_get_is_member(request):
+    """List all events in which the user is participating.
+    The endpoint should be accessible by all authenticated Athletes.
+    """
+    clubs = list(MembersClub.objects.filter(id_User=request.user).values("id_club", "id"))
+    final_list = list()
+    for club in clubs:
+        ev = list(Events.objects.filter(club_id=club["id_club"]).values("id", "club_id", "name", "location",
+                                                                        "date"))
+        for event in ev:
+            part = Participants.objects.filter(event=event["id"], member=club["id"], is_participant=True)
+            if part:
+                final_list.append(event)
+            else:
+                pass
+    if request.method == 'GET':
+        return JsonResponse(final_list, safe=False)
 
 
 @csrf_exempt
@@ -104,37 +135,85 @@ def event_delete(request, id_event):
 
 @csrf_exempt
 @api_view(['GET'])
-@permission_classes((IsAuthenticated, CoachPermission,))
+@permission_classes((IsAuthenticated, AllPermission))
 def event_get_detail(request, id_event):
     """ Get event info and a list of athletes that have
     requested to join the event.
     The endpoint should be accessible by all authenticated Coaches."""
-
     if request.method == "GET":
         try:
             events = list(Events.objects.filter(id=id_event).values("id", "name", "description", "location",
                                                                     "date", "time", "sport_id"))
+            event = events[0]
             final_list = list()
-            final_list.append(events)
-
-            for e in events:
-                participants = list(Participants.objects.filter(event=e["id"], is_participant=True).values("member"))
-                for p in participants:
-                    part_list = list(MembersClub.objects.filter(id=p["member"]).values("id_User"))
-                    for d in part_list:
-                        detail_list = list(User.objects.filter(id=d["id_User"]).values("first_name", "last_name",
+            f_list = {
+                "id": id_event,
+                "name": event["name"],
+                "desciption": event["description"],
+                "location": event["location"],
+                "date": event["date"],
+                "time": event["time"]}
+            participant_list = list()
+            participants = list(Participants.objects.filter(event=event["id"], is_participant=True).values("member"))
+            for p in participants:
+                part_list = list(MembersClub.objects.filter(id=p["member"]).values("id_User"))
+                for d in part_list:
+                    detail_list = list(User.objects.filter(id=d["id_User"]).values("id","first_name", "last_name",
                                                                                        "email", "height", "weight",
                                                                                        "age", "role", "gender",
                                                                                        "primary_sport",
                                                                                        "secondary_sport"))
-                        for part in detail_list:
-                            if part["gender"] == User.MALE:
-                                part["gender"] = "Male"
-                            else:
-                                part["gender"] = "Female"
-
-                        final_list.append(detail_list)
-
+                    for part in detail_list:
+                        workout_list = list(Workout.objects.filter(owner=part["id"], event=event["id"])
+                                                .values("name","description","latitude","longitude","radius",
+                                                        "duration","distance","average_hr","calories_burned",
+                                                        "average_speed","workout_effectiveness","heart_rate"
+                                                        ))
+                        if not workout_list:
+                                work_detail = {
+                                    "name": 0,
+                                    "description": 0,
+                                    "latitude": 0,
+                                    "longitude": 0,
+                                    "radius": 0,
+                                    "duration": 0,
+                                    "distance": 0,
+                                    "average_hr": 0,
+                                    "calories_burned": 0,
+                                    "average_speed": 0,
+                                    "workout_effectiveness": 0,
+                                    "heart_rate": 0
+                                }
+                        else:
+                                    work = workout_list[0]
+                                    work_detail = {
+                                    "name": work["name"],
+                                    "description": work["description"],
+                                    "latitude": work["latitude"],
+                                    "longitude": work["longitude"],
+                                    "radius": work["radius"],
+                                    "duration": work["duration"],
+                                    "distance": work["distance"],
+                                    "calories_burned": work["calories_burned"],
+                                    "average_speed": work["average_speed"],
+                                    "workout_effectiveness": work["workout_effectiveness"],
+                                    "heart_rate": work["heart_rate"]}
+                    for part in detail_list:
+                        if part["gender"] == User.MALE:
+                            part["gender"] = "Male"
+                        else:
+                            part["gender"] = "Female"
+                        participant = {"id":part["id"],
+                                    "first_name": part["first_name"],
+                                   "last_name": part["last_name"],
+                                   "workout-details": work_detail
+                                   }
+                        participant_list.append(participant)
+            if not participant_list:
+                f_list.update({'participants_detail': participant_list})
+            else:
+                f_list.update({'participants_detail': participant_list})
+            final_list.append(f_list)
             return JsonResponse(final_list, safe=False)
         except Events.DoesNotExist:
             return Response({'error': 'Event does not exist.'}, status=HTTP_404_NOT_FOUND)
@@ -220,18 +299,70 @@ def event_get_all_events(request):
     """Listing all events for admin.
     The endpoint should be accessible by Admin.
     """
-    events = Events.objects.all().values("id", "name", "description", "location", "date", "time")
-    '''
-    page = int(request.query_params.get('page'))
-    if page == 1:
-        start = 0
-    else:
-        start = ((page - 1) * 9) + 1
-    return Response({"events": event_list[start:start+9],
-                    "page_number": len(event_list)/9}, status=HTTP_200_OK)
-    '''
-    events_serializer = EventsSerializer(events, many=True)
-    return Response(events_serializer.data, status=HTTP_200_OK)
+    on_page = 4
+    search = request.query_params.get('search')
+    time = request.query_params.get('time')
+    if time is not None:
+        time = int(time)
+    if time is None:
+        events = Events.objects.all().values("id", "name", "description", "location", "date", "time")
+    elif time == 1:
+        today = date.today()
+        events = Events.objects.filter(date__year=today.year, date__month=today.month, date__day=today.day
+                                       ).values("id", "name", "description", "location", "date", "time")
+    elif time == 2:
+        today = date.today()
+        events = Events.objects.filter(date__year=today.year, date__month=today.month, date__day__gt=today.day
+                                       ).values("id", "name", "description", "location", "date", "time")
+    elif time == 3:
+        today = date.today()
+        events = Events.objects.filter(date__year=today.year, date__month=today.month, date__day__lt=today.day
+                                       ).values("id", "name", "description", "location", "date", "time")
+    if search is None:
+        search = ""
+    final_list = list()
+    for event in events:
+        if search.lower() in event['name'].lower():
+            event_detail = {
+                "id": event["id"],
+                "name": event["name"],
+                "desciption": event["description"],
+                "location": event["location"],
+                "date": event["date"],
+                "time": event["time"]}
+            participant_list = list()
+            participants = list(Participants.objects.filter(event=event["id"], is_participant=True).values("member"))
+            for p in participants:
+                part_list = list(MembersClub.objects.filter(id=p["member"]).values("id_User"))
+                for d in part_list:
+                    detail_list = list(User.objects.filter(id=d["id_User"]).values("id", "first_name", "last_name",
+                                                                                   "email", "height", "weight",
+                                                                                   "age", "role", "gender",
+                                                                                   "primary_sport",
+                                                                                   "secondary_sport"))
+                    for part in detail_list:
+                        if part["gender"] == User.MALE:
+                            part["gender"] = "Male"
+                        else:
+                            part["gender"] = "Female"
+                        user = User.objects.get(id=d["id_User"])
+                        participant = {"id": part["id"],
+                                       "pofile_image": user.profile_image,
+                                       }
+                        participant_list.append(participant)
+
+            event_detail.update({'participants_detail': participant_list})
+            final_list.append(event_detail)
+    page = request.query_params.get('page')
+    if page is not None:
+        page = int(page)
+        if page == 1:
+            start = 0
+        else:
+            start = ((page-1) * (on_page-1)) + 1
+        return Response({"events": final_list[start:start+on_page],
+                        "page_number": ceil(len(final_list)/on_page)}, status=HTTP_200_OK)
+    return Response(final_list, status=HTTP_200_OK)
 
 
 @csrf_exempt
@@ -246,3 +377,5 @@ def has_events(request):
         except Participants.DoesNotExist:
             pass
     return Response({"has_events": False}, status=HTTP_200_OK)
+
+

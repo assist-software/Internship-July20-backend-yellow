@@ -19,8 +19,12 @@ from api.permissions import AthletePermission, AllPermission, AdminORCoachPermis
 @api_view(["GET", "POST"])
 @permission_classes((IsAuthenticated, AllPermission,))
 def create_club(request):
-    """ Creating new club:
-    Just the COACH have access"""
+    """
+    Creating new club:
+    Just the COACH have access
+    :param request:
+    :return: ClubSerializer:
+    """
 
     if request.method == "POST":
         if request.user.role == User.ATHLETE:
@@ -69,20 +73,28 @@ def create_club(request):
 @api_view(["GET", "PUT", "DELETE"])
 @permission_classes((IsAuthenticated, AllPermission))
 def show_club(request, club_id):
-    """ Getting a club by ID:
+    """
+    Getting a club by ID:
     The ADMIN will be able to see all the clubs, no matter the ID and owner.
-    The COACH will be able to see all the clubs he/she owns, no matter the ID."""
+    The COACH will be able to see all the clubs he/she owns, no matter the ID.
+    :param request:
+    :param club_id:
+    :return: MembersClubSerializer:
+    """
 
     if request.method == "GET":
         if request.user.role == User.ATHLETE:
             club = get_object_or_404(Club, id=club_id)
+            coach_clubs = Club.objects.filter(id_Owner=club.id_Owner)
+            coach_clubs_serializer = ClubSerializer(coach_clubs, many=True)
             club_serializer = ClubSerializer(club)
             members = MembersClub.objects.filter(id_club=club_id)
             members_serializer = MembersClubSerializer(members, many=True)
             events = Events.objects.filter(club_id=club_id)
             events_serializer = EventsSerializer(events, many=True)
             return JsonResponse({'Club details': club_serializer.data, 'Members': members_serializer.data,
-                                 'Events': events_serializer.data}, status=status.HTTP_200_OK)
+                                 'Events': events_serializer.data, 'Coach clubs': coach_clubs_serializer.data},
+                                status=status.HTTP_200_OK)
 
 
 
@@ -193,3 +205,16 @@ def mb_pending_club(request, club_id):
         clubs = (get_object_or_404(Club, id=club_id))
         return Response({"name": clubs.name})
 
+
+@csrf_exempt
+@api_view(["GET"])
+@permission_classes((IsAuthenticated, AdminORCoachPermission,))
+def clubs(request):
+    if request.user.role == User.ADMIN:
+        clubs = Club.objects.all().values("name")
+    else:
+        clubs = Club.objects.filter(id_Owner=request.user).values("name")
+    final_list = list()
+    for club in clubs:
+        final_list.append(club["name"])
+    return Response(final_list, status=status.HTTP_200_OK)
