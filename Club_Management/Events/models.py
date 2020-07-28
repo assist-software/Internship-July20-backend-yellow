@@ -30,16 +30,24 @@ class Participants(models.Model):
 
 class Workout(models.Model):
     owner = models.ForeignKey('users.User', on_delete=models.CASCADE)
-    name = models.CharField(max_length=30,unique=True)
-    description = models.CharField(max_length=300)
+    name = models.CharField(max_length=30, blank=True)
+    description = models.CharField(max_length=300, blank=True)
     event = models.ForeignKey(Events, on_delete=models.CASCADE)
-    latitude = models.IntegerField(validators=[MinValueValidator(-90), MaxValueValidator(90)])
-    longitude = models.IntegerField(validators=[MinValueValidator(-180), MaxValueValidator(180)])
+    latitude = models.IntegerField(validators=[MinValueValidator(-90), MaxValueValidator(90)], blank=True, null=True)
+    longitude = models.IntegerField(validators=[MinValueValidator(-180), MaxValueValidator(180)], blank=True, null=True)
     radius = models.IntegerField(default=0)
     duration = models.IntegerField(default=0)
-    distance = models.IntegerField(default=0)
-    average_hr = models.IntegerField(default=0)
+    distance = models.FloatField(default=0)
+    average_hr = models.IntegerField(default=0, blank=True, null=True)
     calories_burned = models.IntegerField(default=0)
-    average_speed = models.IntegerField(default=0)
-    workout_effectiveness = models.IntegerField(default=0)
-    heart_rate = models.IntegerField()
+    average_speed = models.FloatField(default=0)
+    LOW = 1
+    MED = 2
+    HIGH = 3
+    EFFECTIVENESS = [
+        (LOW, "Low"),
+        (MED, "Medium"),
+        (HIGH, "High")
+    ]
+    workout_effectiveness = models.IntegerField()
+    heart_rate = models.IntegerField(choices=EFFECTIVENESS, default=LOW, blank=True)

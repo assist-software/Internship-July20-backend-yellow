@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from Events.serializers import EventsSerializer
 from rest_framework.permissions import IsAuthenticated
 from api.permissions import AdminORCoachPermission, AthletePermission, CoachPermission, AdminPermission, AllPermission
+from Events.models import Workout
 
 
 @csrf_exempt
@@ -38,12 +39,16 @@ def event_post(request):
             club = Club.objects.get(name=request.data.get('club'))
         except Club.DoesNotExist:
             return Response(status=HTTP_404_NOT_FOUND)
-        event = Events(club_id=club, name=name,
-                       description=description,
-                       location=location, date=date,
-                       time=time,)
-        event.save()
-        return Response(status=status.HTTP_201_CREATED)
+        try:
+            event = Events.objects.get(name=name)
+            return Response({"error": "Name already exists!"},status=status.HTTP_400_BAD_REQUEST)
+        except Events.DoesNotExist:
+            event = Events(club_id=club, name=name,
+                           description=description,
+                           location=location, date=date,
+                           time=time,)
+            event.save()
+            return Response(status=status.HTTP_201_CREATED)
 
 
 @csrf_exempt
@@ -80,7 +85,7 @@ def event_get(request):
     """Listing all events for all joined clubs.
     The endpoint should be accessible by all authenticated Athletes.
     """
-    clubs = list(MembersClub.objects.filter(id_User=request.user).values("id_club", "id"))
+    clubs = list(MembersClub.objects.filter(id_User=request.user, is_member=True).values("id_club", "id"))
     final_list = list()
     for club in clubs:
         ev = list(Events.objects.filter(club_id=club["id_club"]).values("id", "club_id", "name", "location",
@@ -92,6 +97,8 @@ def event_get(request):
             else:
                 pass
     return JsonResponse(final_list, safe=False)
+
+
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([AthletePermission, ])
@@ -148,7 +155,7 @@ def event_get_detail(request, id_event):
             f_list = {
                 "id": id_event,
                 "name": event["name"],
-                "desciption": event["description"],
+                "description": event["description"],
                 "location": event["location"],
                 "date": event["date"],
                 "time": event["time"]}
@@ -221,7 +228,7 @@ def event_get_detail(request, id_event):
 
 @csrf_exempt
 @api_view(['PUT'])
-@permission_classes((IsAuthenticated, CoachPermission,))
+@permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def event_put(request, id_event):
     """Edit an event by id.
     The endpoint should be accessible by all authenticated Coaches
@@ -229,6 +236,9 @@ def event_put(request, id_event):
 
     if request.method == "PUT":
         event = (get_object_or_404(Events, id=id_event))
+        name = request.data.get('name')
+        if name is None:
+            return Response({"error": "Please provide a name."}, status=HTTP_400_BAD_REQUEST)
         event.club_id = Club.objects.get(name=request.data.get('club'))
         event.name = request.data.get('name')
         event.description = request.data.get('description')
@@ -250,23 +260,35 @@ def workout_post(request):
     The endpoint should be accessible by all authenticated Athletes """
 
     if request.method == "POST":
-        workout = Workout(owner=request.user, name=request.data.get('name'),
-                          description=request.data.get('description'),
-                          event=Events.objects.get(name=request.data.get('event')),
-                          latitude=request.data.get('latitude'),
-                          longitude=request.data.get('longitude'), radius=request.data.get('radius'),
+        heart_rate = request.data.get('workout_effectiveness')
+        if heart_rate == Workout.LOW:
+            heart_rate = 1
+        elif heart_rate == Workout.MED:
+            heart_rate = 2
+        elif heart_rate == Workout.HIGH:
+            heart_rate = 3
+        name = request.data.get('name')
+        if name is None:
+            name = ""
+        description = request.data.get('description')
+        if description is None:
+            description = ""
+        average_hr = request.data.get('average_hr')
+        if average_hr is None:
+            average_hr = 0
+        workout = Workout(owner=request.user, name=name,
+                          description=description,
+                          event=Events.objects.get(id=request.data.get('event')),
+                          latitude=1,
+                          longitude=1, radius=1,
                           duration=request.data.get('duration'), distance=request.data.get('distance'),
-                          average_hr=request.data.get('average_hr'),
+                          average_hr=average_hr,
                           calories_burned=request.data.get('calories_burned'),
                           average_speed=request.data.get('average_speed'),
-                          workout_effectiveness=request.data.get('workout_effectiveness'),
+                          workout_effectiveness=heart_rate,
                           heart_rate=request.data.get('heart_rate'))
         workout.save()
-        serializers = EventsSerializer(data=workout.__dict__)
-        if serializers.is_valid():
-            print("Serializers data  {}".format(serializers.data))
-            return Response(serializers.data, status=status.HTTP_201_CREATED)
-        return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_201_CREATED)
 
 
 @csrf_exempt
@@ -324,7 +346,7 @@ def event_get_all_events(request):
             event_detail = {
                 "id": event["id"],
                 "name": event["name"],
-                "desciption": event["description"],
+                "description": event["description"],
                 "location": event["location"],
                 "date": event["date"],
                 "time": event["time"]}
@@ -345,7 +367,9 @@ def event_get_all_events(request):
                             part["gender"] = "Female"
                         user = User.objects.get(id=d["id_User"])
                         participant = {"id": part["id"],
-                                       "pofile_image": user.profile_image,
+                                       "age": user.age,
+                                       "gender": user.gender,
+                                       "profile_image": user.profile_image,
                                        }
                         participant_list.append(participant)
 

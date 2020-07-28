@@ -1,7 +1,8 @@
 from math import ceil
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
@@ -16,9 +17,22 @@ from django.core.mail import send_mail
 from rest_framework.permissions import IsAuthenticated
 from api.permissions import AdminPermission, AdminORCoachPermission
 from Club.models import Club
-from django.db.models import Q
+
+param1 = openapi.Parameter('first name', openapi.IN_QUERY, description="first name", type=openapi.TYPE_STRING)
+param2 = openapi.Parameter('last name', openapi.IN_QUERY, description="last name", type=openapi.TYPE_STRING)
+param3 = openapi.Parameter('email', openapi.IN_QUERY, description="email", type=openapi.TYPE_STRING)
 
 
+@swagger_auto_schema(method='get',
+                     operation_description="Method is GET it returns a list of all "
+                                           "coaches.Can be accessed by ADMINS.",
+                     manual_parameters=[param1, param2, param3],
+                     responses={200: CoachSerializer,
+                                400: "Bad request"})
+@swagger_auto_schema(methods=['post'],
+                     operation_description="This endpoint is used to create a new coach if the request method is "
+                                           "POST.",
+                     responses={200: CoachSerializer})
 @csrf_exempt
 @api_view(["POST", "GET"])
 @permission_classes((IsAuthenticated, AdminPermission, ))
@@ -56,8 +70,8 @@ def coach(request: {}) -> Response:
                    'Login using the following credentials:\n'
                    'email : {}\n'
                    'password : {}\n'
-                   'Club Management team.').format(new_user.get_full_name(), 'http://127.0.0.1:8000/api/signin/', email,
-                                                   password)
+                   'Club Management team.').format(new_user.get_full_name(), 'http://34.65.176.55:8081/api/signin/',
+                                                   email, password)
         send_mail('Club Management Coach Profile Created', message, 'test.club.django@gmail.com', [email],
                   fail_silently=False, )
         return Response({'name': new_user.get_full_name()},
@@ -97,6 +111,21 @@ def coach(request: {}) -> Response:
             return JsonResponse({"coaches": coaches.data}, safe=False, status=HTTP_200_OK)
 
 
+@swagger_auto_schema(methods=['get'],
+                     operation_description="This endpoint is used to delete, edit or get a coach by IDCan be accessed "
+                                           "by ADMINS AND COACHES",
+                     responses={200: CoachSerializer})
+@swagger_auto_schema(methods=['put'],
+                     operation_description="This endpoint is used to delete, edit or get a coach by IDCan be accessed "
+                                           "by ADMINS AND COACHES",
+                     manual_parameters=[param1, param2, param3],
+                     responses={200: 'success : The coach has been edited.',
+                                404: "Bad request"})
+@swagger_auto_schema(methods=['delete'],
+                     operation_description="This endpoint is used to delete, edit or get a coach by IDCan be accessed "
+                                           "by ADMINS AND COACHES",
+                     responses={200: 'success : The coach has been deleted.',
+                                404: "Bad request"})
 @csrf_exempt
 @api_view(["DELETE", "PUT", "GET"])
 @permission_classes((IsAuthenticated, AdminORCoachPermission, ))
@@ -131,9 +160,9 @@ def delete_edit(request: {}, id: int) -> Response:
             return Response({'error': 'Access denied.'})
         try:
             coach = User.objects.get(id=id)
-            clubs = Club.objectes.filter(id_Owner=coach)
+            clubs = Club.objects.filter(id_Owner=coach)
             for club in clubs:
-                club.id_Owner = request.user
+                Club.objects.filter(id=club.id).update(id_Owner=request.user)
             coach.delete()
             return Response({'success': 'The coach was removed.'}, status=HTTP_200_OK)
         except User.DoesNotExist:

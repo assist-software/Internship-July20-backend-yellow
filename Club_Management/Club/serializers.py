@@ -39,3 +39,7 @@ class MembersClubSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         instance.description = validated_data.get('description', instance.description)
         return instance
+
+
+class MemberSerializer(serializers.Serializer):
+    id_User = UserSerializer()

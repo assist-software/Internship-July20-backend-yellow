@@ -34,6 +34,7 @@ def signin(request):
                         status=HTTP_404_NOT_FOUND)
     token, _ = Token.objects.get_or_create(user=user)
     return Response({'token': "Token " + token.key,
+                     'name': user.get_full_name(),
                      'id': user.id,
                      'role': user.role},
                     status=HTTP_200_OK)

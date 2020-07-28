@@ -6,7 +6,7 @@ from users.models import User
 
 class Club(models.Model):
     name = models.CharField(max_length=30, unique=True)
-    id_Owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    id_Owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
 
 """Model for the lists of invited/requested/members of the club."""
