@@ -1,5 +1,6 @@
 from math import ceil
 from django.http import JsonResponse
+from django.utils.crypto import get_random_string
 from django.views.decorators.csrf import csrf_exempt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -18,13 +19,25 @@ from rest_framework.permissions import IsAuthenticated
 from api.permissions import AdminPermission, AdminORCoachPermission
 from Club.models import Club
 
+
+def pagination(on_page, page):          # Returns start and end of slicing for pagination
+    if page is not None:
+        page = int(page)
+        if page == 1:
+            start = 0
+        else:
+            start = ((page - 1) * (on_page - 1)) + 1
+        end = start+on_page
+    return start, end
+
+
 param1 = openapi.Parameter('first name', openapi.IN_QUERY, description="first name", type=openapi.TYPE_STRING)
 param2 = openapi.Parameter('last name', openapi.IN_QUERY, description="last name", type=openapi.TYPE_STRING)
 param3 = openapi.Parameter('email', openapi.IN_QUERY, description="email", type=openapi.TYPE_STRING)
 
 
 @swagger_auto_schema(method='get',
-                     operation_description="Method is GET it returns a list of all "
+                     operation_description="If method is GET it returns a list of all "
                                            "coaches.Can be accessed by ADMINS.",
                      manual_parameters=[param1, param2, param3],
                      responses={200: CoachSerializer,
@@ -60,6 +73,11 @@ def coach(request: {}) -> Response:
         except User.DoesNotExist:
             pass
         password = User.objects.make_random_password()
+        small = get_random_string(length=1, allowed_chars='qwertyuiopasdfghjklzxcvbnm')
+        caps = get_random_string(length=1, allowed_chars='QWERTYUIOPASDFGHJKLZXCVBNM')
+        digits = get_random_string(length=1, allowed_chars='1234567890')
+        specials = get_random_string(length=1, allowed_chars='@#$%^&+=!.*()_~')
+        password = password + small + digits + caps + specials
         new_user = User.objects.create_user(email=email, first_name=first_name, last_name=last_name, height=None,
                                             weight=None, password=password, role=User.COACH, gender=User.MALE, age=18)
         new_user.save()
@@ -96,17 +114,13 @@ def coach(request: {}) -> Response:
                     all_clubs = all_clubs + " + " + str(j - 1)
                 coach["club"] = all_clubs
                 final.append(coach)
-        page = request.query_params.get('page')
-        on_page = 6
         coaches = CoachSerializer(final, many=True)
-        if page is not None:
-            page = int(page)
-            if page == 1:
-                start = 0
-            else:
-                start = ((page - 1) * (on_page - 1)) + 1
-            return Response({"coaches": coaches.data[start:start+on_page],
-                             "page_number": ceil(len(coaches.data)/on_page)}, status=HTTP_200_OK)
+        pg = request.query_params.get('page')
+        on_page = 6
+        if pg is not None:
+            start, end = pagination(on_page=on_page, page=pg)
+            return Response({"coaches": coaches.data[start:end],
+                             "page_number": ceil(len(coaches.data) / on_page)}, status=HTTP_200_OK)
         else:
             return JsonResponse({"coaches": coaches.data}, safe=False, status=HTTP_200_OK)
 

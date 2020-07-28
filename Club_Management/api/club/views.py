@@ -10,6 +10,7 @@ from rest_framework import status
 from Club.serializers import ClubSerializer, MembersClubSerializer, MemberSerializer
 from Events.models import Events
 from Events.serializers import EventsSerializer
+from api.Coach.views import pagination
 from users.models import User
 from rest_framework.decorators import permission_classes, api_view
 from Club.models import Club, MembersClub
@@ -110,7 +111,7 @@ def create_club(request):
                 final.append(club)
         club_serializer = ClubSerializer(final, many=True)
         return JsonResponse({"clubs": club_serializer.data,
-                                 "numbers": member_numbers}, safe=False)
+                            "numbers": member_numbers}, safe=False)
 
 
 """ Requests for 'api/club/<int:club_id>' path. """
@@ -154,14 +155,6 @@ def show_club(request, club_id):
             search = request.query_params.get('search')
             if search is None:
                 search = ""
-            page = request.query_params.get('page')
-            on_page = 9
-            if page is not None:
-                page = int(page)
-                if page == 1:
-                    start = 0
-                else:
-                    start = ((page - 1) * (on_page - 1)) + 1
             club = get_object_or_404(Club, id=club_id)
             club_serializer = ClubSerializer(club)
             members = MembersClub.objects.filter(id_club=club_id, is_member=True)
@@ -170,12 +163,16 @@ def show_club(request, club_id):
                 if search.lower() in memb.id_User.get_full_name().lower():
                     final.append(memb)
             members_serializer = MemberSerializer(final, many=True)
-            if club.id_Owner == request.user or request.user.role == User.ADMIN:
-                return JsonResponse({'Club_details': club_serializer.data,
-                                     'Members': members_serializer.data[start:start+on_page],
-                                     "page_number": ceil(len(members_serializer.data)/on_page),})
-            else:
-                return JsonResponse({'error': 'Access denied.'}, status=status.HTTP_401_UNAUTHORIZED)
+            pg = request.query_params.get('page')
+            on_page = 9
+            if pg is not None:
+                start, end = pagination(on_page=on_page, page=pg)
+                if club.id_Owner == request.user or request.user.role == User.ADMIN:
+                    return JsonResponse({'Club_details': club_serializer.data,
+                                         'Members': members_serializer.data[start:end],
+                                         "page_number": ceil(len(members_serializer.data)/on_page)})
+                else:
+                    return JsonResponse({'error': 'Access denied.'}, status=status.HTTP_401_UNAUTHORIZED)
         question = (get_object_or_404(Club, id=club_id))
         return Response({"name": question.name})
 
@@ -272,7 +269,6 @@ def mb_requested_club(request, club_id):
     return Response({"name": question.name})
 
 
-
 @swagger_auto_schema(methods=['get'],
                      operation_description="Getting a list of clubs",
                      responses={200: ClubSerializer})
@@ -288,7 +284,7 @@ def clubs(request):
 
 
 @csrf_exempt
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def accept_request(request):
     user_id = request.data.get('user_id')
@@ -297,7 +293,7 @@ def accept_request(request):
     club_id = request.data.get('club_id')
     if club_id is None:
         return Response({"error": "Provide an id"}, status=status.HTTP_400_BAD_REQUEST)
-    accept = int(request.data.get(''))
+    accept = int(request.data.get('accept'))
     if accept is None:
         return Response({"error": "Provide an decision."}, status=status.HTTP_400_BAD_REQUEST)
     try:

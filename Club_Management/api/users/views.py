@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login
+from django.utils.crypto import get_random_string
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -19,9 +20,7 @@ from api.permissions import AdminORCoachPermission
 @permission_classes((AllowAny,))
 def signin(request):
     """
-    This endpoint is used to signin.
-    :param request:
-    :return: token:,id:,role:
+    This endpoint is used to sign-in.
     """
     email = request.data.get("email")
     password = request.data.get("password")
@@ -46,8 +45,6 @@ def signin(request):
 def reset_password(request):
     """
     This endpoint is used to reset the password of an user.
-    :param request:
-    :return: Response:
     """
     email = request.data.get("email")
     if email is None:
@@ -58,7 +55,12 @@ def reset_password(request):
     except User.DoesNotExist:
         return Response({'error': 'The email does not exist our database.'},
                         status=HTTP_404_NOT_FOUND)
-    password = User.objects.make_random_password()
+    password = User.objects.make_random_password(length=4)
+    small = get_random_string(length=1, allowed_chars='qwertyuiopasdfghjklzxcvbnm')
+    caps = get_random_string(length=1, allowed_chars='QWERTYUIOPASDFGHJKLZXCVBNM')
+    digits = get_random_string(length=1, allowed_chars='1234567890')
+    specials = get_random_string(length=1, allowed_chars='@#$%^&+=!.*()_~')
+    password = password + small + digits + caps + specials
     user.set_password(password)
     user.save()
     message = ('Hello {}.\n'
@@ -66,7 +68,7 @@ def reset_password(request):
                'You requested that your password to be reset.\n'
                'Your new password is: {}\n'
                'You can login using the following link: {}\n'
-               'Club Management team.').format(user.get_full_name(), password, 'http://192.168.1.4:8001/api/signin/')
+               'Club Management team.').format(user.get_full_name(), password, 'http://34.65.176.55:8081/api/signin/')
     send_mail('Club Management New Password', message, 'test.club.django@gmail.com', [email], fail_silently=False, )
     return Response({'Success:': 'The email has been sent.'},
                     status=HTTP_200_OK)
@@ -78,8 +80,6 @@ def reset_password(request):
 def invite(request):
     """
     This endpoint is used to invite an athlete by id
-    :param request:
-    :return: Response:
     """
     header = request.headers.get('Authorization')
     token = Token.objects.get(key=header)
@@ -105,7 +105,7 @@ def invite(request):
                'Login using the following credentials:\n'
                'email : {}\n'
                'password : {}\n'
-               'Club Management team.').format(user.get_full_name(), 'http://192.168.1.4:8001/api/signin/',
+               'Club Management team.').format(user.get_full_name(), 'http://34.65.176.55:8081/api/signin/',
                                                email, password)
     send_mail('Club Management Invite', message, 'test.club.django@gmail.com', [email], fail_silently=False, )
     return Response({'Success:': 'The email has been sent.'},

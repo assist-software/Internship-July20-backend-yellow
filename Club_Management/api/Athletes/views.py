@@ -18,6 +18,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from api.permissions import AdminORCoachPermission, AllPermission
 from Club.models import Club, MembersClub
 from Athletes.serializers import SportSerializer, AthleteSerializer
+from api.Coach.views import pagination
 
 
 @swagger_auto_schema(method='get',
@@ -106,7 +107,7 @@ def athlete(request):
                    'Login using the following credentials:\n'
                    'email : {}\n'
                    'password : {}\n'
-                   'Club Management team.').format(new_user.get_full_name(), 'http://192.168.149.50:8001/api/signin/',
+                   'Club Management team.').format(new_user.get_full_name(), 'http://34.65.176.55:8081/api/signin/',
                                                    email, password)
         send_mail('Club Management Athlete Profile Created', message, 'test.club.django@gmail.com', [email],
                   fail_silently=False, )
@@ -116,7 +117,6 @@ def athlete(request):
         search = request.query_params.get('search')
         if search is None:
             search = ""
-        on_page = 9
         all_athletes = User.objects.filter(role=2).values("id", "first_name", "last_name", "age",
                                                           "height", "weight", "gender", "email",
                                                           "primary_sport", "secondary_sport", )
@@ -137,14 +137,11 @@ def athlete(request):
                     a["gender"] = "Female"
                 final.append(a)
         athletes = AthleteSerializer(final, many=True)
-        page = request.query_params.get('page')
-        if page is not None:
-            page = int(page)
-            if page == 1:
-                start = 0
-            else:
-                start = ((page - 1) * (on_page - 1)) + 1
-            return JsonResponse({"athletes": athletes.data[start:start+on_page],
+        pg = request.query_params.get('page')
+        on_page = 9
+        if pg is not None:
+            start, end = pagination(on_page=on_page, page=pg)
+            return JsonResponse({"athletes": athletes.data[start:end],
                                 "page_number": ceil(len(athletes.data)/on_page)}, safe=False, status=HTTP_200_OK)
         else:
             return JsonResponse({"athletes": athletes.data}, safe=False, status=HTTP_200_OK)
@@ -157,7 +154,7 @@ def athlete(request):
                      responses={200: AthleteSerializer,
                                 400: "Bad request"})
 @swagger_auto_schema(methods=['put'],
-                     operation_description="Creating an athlete: The ADMIN will be able to create an athlete.",
+                     operation_description="Endpoint used to edit an athlete.",
                      request_body=AthleteSerializer,
                      responses={200: 'success : The athlete has been modified.',
                                 404: "Bad request"})
@@ -256,7 +253,7 @@ param4 = openapi.Parameter('password', openapi.IN_QUERY, description="password",
 
 
 @swagger_auto_schema(methods=['post'],
-                     operation_description="Creating an athlete: The ADMIN will be able to create an athlete.",
+                     operation_description="Register endpoint. Here the mobile user will create his account.",
                      manual_parameters=[param1, param2, param3, param4],
                      responses={200: 'Success : User was created',
                                 400: "Bad request"})
@@ -292,9 +289,7 @@ def register(request):
 
 
 @swagger_auto_schema(method='get',
-                     operation_description="This endpoint is used to create a new athlete if the request method is "
-                                           "POST.And if the request method is GET it returns a list of all "
-                                           "athletes.Can be accessed by ADMINS or COACHES.",
+                     operation_description="This endpoint is used to return a list of all Sports.",
                      responses={200: SportSerializer})
 @csrf_exempt
 @api_view(["GET"])
