@@ -287,20 +287,25 @@ def clubs(request):
 @api_view(["POST"])
 @permission_classes((IsAuthenticated, AdminORCoachPermission,))
 def accept_request(request):
-    user_id = request.data.get('user_id')
-    if id is None:
-        return Response({"error": "Provide an user_id"}, status=status.HTTP_400_BAD_REQUEST)
+    user_email = request.data.get('email')
+    if user_email is None:
+        return Response({"error": "Provide an email"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        user = User.objects.get(email=user_email)
+    except User.DoesNotExist:
+        return Response({"error": "The user does not exist"}, status=status.HTTP_404_NOT_FOUND)
     club_id = request.data.get('club_id')
     if club_id is None:
-        return Response({"error": "Provide an id"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Provide a club_id"}, status=status.HTTP_400_BAD_REQUEST)
     accept = int(request.data.get('accept'))
     if accept is None:
-        return Response({"error": "Provide an decision."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Provide a decision."}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        members = MembersClub.objects.get(id_club=club_id, id_User=user_id)
-        if accept == True:
+        members = MembersClub.objects.get(id_club=club_id, id_User=user)
+        if accept:
             members.is_member = 1
         members.is_requested = 0
         members.save()
+        return Response(status=status.HTTP_200_OK)
     except MembersClub.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
